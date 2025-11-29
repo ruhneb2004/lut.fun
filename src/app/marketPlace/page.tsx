@@ -4,8 +4,10 @@ import Link from "next/link";
 import ItemCard from "@/components/ItemComp"; // Ensure this path matches your project
 import { MARKET_DATA } from "../lib/data";
 import CreateLotteryModal from "@/components/CreateLotteryModal";
+import { truncateAddress, useWallet } from "@aptos-labs/wallet-adapter-react";
 
 const Marketplace = () => {
+  const { account } = useWallet();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (
@@ -23,7 +25,7 @@ const Marketplace = () => {
               href={"/profile"}
               className="bg-[#ff7a50] flex items-center gap-3 text-black font-bold border-2 border-black py-2 px-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-y-[2px] active:shadow-none transition-all"
             >
-              <span>User123</span>
+              <span>{truncateAddress(account?.address.toStringLong())}</span>
               <svg
                 width="24"
                 height="24"
