@@ -27,7 +27,7 @@ const LandingPage = () => {
             </button>
 
             <Link
-              href={"/marketPlace"}
+              href={"/marketplace"}
               className="bg-[#ff7a50] text-black font-bold border-2 border-black py-3 px-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
             >
               Connect Wallet
@@ -59,7 +59,7 @@ const LandingPage = () => {
                 Deposit USDC to win prizes, rewards, and contribute to a good cause
               </h2>
               <Link
-                href={"/marketPlace"}
+                href={"/marketplace"}
                 className="bg-white text-black font-black border-2 border-black py-4 px-12 text-lg uppercase shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all"
               >
                 Connect Wallet

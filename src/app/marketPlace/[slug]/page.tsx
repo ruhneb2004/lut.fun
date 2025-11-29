@@ -4,16 +4,23 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MARKET_DATA, MarketItem } from "@/app/lib/data";
 
+export async function generateStaticParams() {
+  return MARKET_DATA.map((item) => ({
+    slug: item.id.toString(),
+  }));
+}
+
 // In Next.js App Router, params are passed as props to the page
 export default function ProductDetailsPage({ params }: { params: { slug: string } }) {
   const { slug } = params;
 
-  // 2. Find the matching item
-  const product: MarketItem | undefined = MARKET_DATA.find((item) => item.id === slug);
+  // Compare using String() to ensure types match
+  const product: MarketItem | undefined = MARKET_DATA.find((item) => String(item.id) === slug);
 
-  console.log("Product:", product);
+  // Debugging: Check your server terminal (not browser console) for this log
+  console.log("Slug from URL:", slug);
+  console.log("Found Product:", product);
 
-  // 3. Handle 404
   if (!product) {
     notFound();
   }
