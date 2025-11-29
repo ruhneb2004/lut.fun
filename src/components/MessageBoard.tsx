@@ -48,7 +48,16 @@ export function MessageBoard() {
     }
 
     try {
-      const committedTransaction = await client.useABI(MESSAGE_BOARD_ABI).post_message({
+      if (!MESSAGE_BOARD_ABI) {
+        toast({
+          variant: "destructive",
+          title: "ABI not found",
+          description: "Message board ABI is not available.",
+        });
+        return;
+      }
+
+      const committedTransaction = await (client.useABI(MESSAGE_BOARD_ABI) as any).post_message({
         type_arguments: [],
         arguments: [newMessageContent],
       });
