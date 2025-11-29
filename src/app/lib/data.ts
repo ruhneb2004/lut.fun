@@ -9,6 +9,7 @@ export type MarketItem = {
   isPositive: boolean;
   contract: string;
   holders: string;
+  image: string;
 };
 
 export const MARKET_DATA = [
@@ -21,6 +22,7 @@ export const MARKET_DATA = [
     isPositive: true,
     contract: "0xb47...e55c",
     holders: "5.13%",
+    image: "https://i.seadn.io/gae/BdxvLseXcfl57BiuQcQYdJ64v-aI8din7WPk0Pgo3qQFhAUH-B6i-dCqqc_mCkRIzULmwzwecnohLhrcH8A9mpWIZqA7ygc52Sr81hE?auto=format&w=384",
   },
   {
     id: "bored-ape-8821",
@@ -31,6 +33,7 @@ export const MARKET_DATA = [
     isPositive: false,
     contract: "0xbc4...f13d",
     holders: "3.42%",
+    image: "https://i.seadn.io/gae/i5dYZRkVCUK97bfprQ3WXyrT9BnLSZtVKGJlKQ919uaUB0sxbngVCioaiyu9r6snqfi2aaTyIvv6DHm4m2R3y7hMajbsv14pSZK8mhs?auto=format&w=384",
   },
   {
     id: "azuki-elemental",
@@ -41,6 +44,7 @@ export const MARKET_DATA = [
     isPositive: true,
     contract: "0xed5...3232",
     holders: "1.20%",
+    image: "https://i.seadn.io/gcs/files/1450e68c77e36ca074656d6bb8edf810.png?auto=format&w=384",
   },
   {
     id: "doodle-3321",
@@ -51,6 +55,7 @@ export const MARKET_DATA = [
     isPositive: true,
     contract: "0xaa2...9981",
     holders: "8.10%",
+    image: "https://i.seadn.io/gae/7B0qai02OdHA8P_EOVK672qUliyjQdQDGNrACxs7WnTgZAkJa_wWURnIFKeOh5VTf8cfTqW3wQpozGedaC9mteKphEOtztls02RlWQ?auto=format&w=384",
   },
   {
     id: "moonbird-9912",
@@ -61,6 +66,7 @@ export const MARKET_DATA = [
     isPositive: false,
     contract: "0xcc1...2241",
     holders: "2.10%",
+    image: "https://i.seadn.io/gae/H-eyNE1MwL5ohL-tCfn_Xa1Sl9M9B4612tLYeUlQubzt4ewhr4huJIR5OLuyO3Z5PpJFSwdm7rq-TikAh7f5eUw338A2cy6HRH75?auto=format&w=384",
   },
   {
     id: "clone-x-1129",
@@ -71,5 +77,6 @@ export const MARKET_DATA = [
     isPositive: true,
     contract: "0xdd9...1123",
     holders: "6.50%",
+    image: "https://i.seadn.io/gae/XN0XuD8Uh3jyRWNtPTFeXJg_ht8m5ofDx6aHklOiy4amhFuWUa0JaR6It49AH8tlnYS386Q0TW_-Lmedn0UET_ko1a3CbJGeu5iHMg?auto=format&w=384",
   },
 ];

@@ -1,11 +1,131 @@
-import React from "react";
+"use client";
+
+import React, { useState } from "react";
+import { createPool } from "@/lib/database";
+import { useToast } from "@/components/ui/use-toast";
 
 interface CreateLotteryModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onPoolCreated?: () => void;
 }
 
-const CreateLotteryModal: React.FC<CreateLotteryModalProps> = ({ isOpen, onClose }) => {
+const CreateLotteryModal: React.FC<CreateLotteryModalProps> = ({ isOpen, onClose, onPoolCreated }) => {
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    min: "",
+    max: "",
+    poolToken: "",
+    poolAmount: "",
+  });
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleCreate = async () => {
+    // Validate form
+    if (!formData.name.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a lottery name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.min || !formData.max) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter minimum and maximum entry values",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.poolAmount) {
+      toast({
+        title: "Validation Error",
+        description: "Please select a pool amount",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const minEntry = parseFloat(formData.min);
+    const maxEntry = parseFloat(formData.max);
+    const poolAmount = parseFloat(formData.poolAmount);
+
+    if (minEntry <= 0 || maxEntry <= 0 || poolAmount <= 0) {
+      toast({
+        title: "Validation Error",
+        description: "All values must be greater than 0",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (minEntry > maxEntry) {
+      toast({
+        title: "Validation Error",
+        description: "Minimum entry cannot be greater than maximum entry",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const pool = await createPool({
+        name: formData.name.trim(),
+        min: minEntry,
+        max: maxEntry,
+        pool: poolAmount,
+        total: 0, // Initial total is 0
+      });
+
+      if (pool) {
+        toast({
+          title: "Success!",
+          description: `Pool "${pool.name}" created successfully`,
+        });
+        
+        // Reset form
+        setFormData({
+          name: "",
+          min: "",
+          max: "",
+          poolToken: "",
+          poolAmount: "",
+        });
+        
+        // Callback for parent component
+        onPoolCreated?.();
+        
+        // Close modal
+        onClose();
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to create pool. Please check console for details.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("[CreateLotteryModal] Error creating pool:", error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -32,7 +152,10 @@ const CreateLotteryModal: React.FC<CreateLotteryModalProps> = ({ isOpen, onClose
             <input
               type="text"
               placeholder="Enter Lottery name"
+              value={formData.name}
+              onChange={(e) => handleInputChange("name", e.target.value)}
               className="flex-1 bg-white border-2 border-black p-3 font-mono text-gray-700 focus:outline-none focus:ring-2 focus:ring-black/20"
+              disabled={isLoading}
             />
           </div>
 
@@ -43,7 +166,10 @@ const CreateLotteryModal: React.FC<CreateLotteryModalProps> = ({ isOpen, onClose
               <input
                 type="number"
                 placeholder="-0-"
+                value={formData.min}
+                onChange={(e) => handleInputChange("min", e.target.value)}
                 className="w-full bg-white border-2 border-black p-3 text-center font-mono focus:outline-none"
+                disabled={isLoading}
               />
             </div>
           </div>
@@ -55,7 +181,10 @@ const CreateLotteryModal: React.FC<CreateLotteryModalProps> = ({ isOpen, onClose
               <input
                 type="number"
                 placeholder="-0-"
+                value={formData.max}
+                onChange={(e) => handleInputChange("max", e.target.value)}
                 className="w-full bg-white border-2 border-black p-3 text-center font-mono focus:outline-none"
+                disabled={isLoading}
               />
             </div>
           </div>
@@ -65,8 +194,13 @@ const CreateLotteryModal: React.FC<CreateLotteryModalProps> = ({ isOpen, onClose
             <label className="text-xl font-bold font-mono min-w-[200px] text-black">Pool</label>
             <div className="flex flex-1 gap-4">
               <div className="relative w-full">
-                <select className="w-full appearance-none bg-white border-2 border-black p-3 pr-8 font-mono focus:outline-none cursor-pointer">
-                  <option value="" disabled selected></option>
+                <select 
+                  className="w-full appearance-none bg-white border-2 border-black p-3 pr-8 font-mono focus:outline-none cursor-pointer"
+                  value={formData.poolToken}
+                  onChange={(e) => handleInputChange("poolToken", e.target.value)}
+                  disabled={isLoading}
+                >
+                  <option value="" disabled></option>
                   <option value="usdc">USDC</option>
                   <option value="eth">ETH</option>
                   <option value="sol">SOL</option>
@@ -88,8 +222,13 @@ const CreateLotteryModal: React.FC<CreateLotteryModalProps> = ({ isOpen, onClose
               </div>
 
               <div className="relative w-full">
-                <select className="w-full appearance-none bg-white border-2 border-black p-3 pr-8 font-mono focus:outline-none cursor-pointer">
-                  <option value="" disabled selected></option>
+                <select 
+                  className="w-full appearance-none bg-white border-2 border-black p-3 pr-8 font-mono focus:outline-none cursor-pointer"
+                  value={formData.poolAmount}
+                  onChange={(e) => handleInputChange("poolAmount", e.target.value)}
+                  disabled={isLoading}
+                >
+                  <option value="" disabled></option>
                   <option value="100">100</option>
                   <option value="500">500</option>
                   <option value="1000">1000</option>
@@ -114,8 +253,14 @@ const CreateLotteryModal: React.FC<CreateLotteryModalProps> = ({ isOpen, onClose
 
           {/* Create Button */}
           <div className="flex justify-center mt-8">
-            <button className="bg-[#baff73] border-2 border-black px-16 py-3 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all">
-              <span className="text-xl font-black uppercase tracking-widest text-black">CREATE</span>
+            <button 
+              onClick={handleCreate}
+              disabled={isLoading}
+              className={`bg-[#baff73] border-2 border-black px-16 py-3 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              <span className="text-xl font-black uppercase tracking-widest text-black">
+                {isLoading ? 'CREATING...' : 'CREATE'}
+              </span>
             </button>
           </div>
         </div>
