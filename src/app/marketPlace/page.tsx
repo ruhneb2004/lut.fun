@@ -19,7 +19,10 @@ const Marketplace = () => {
             <div className="absolute inset-0 bg-[linear-gradient(to_right,#0000001a_1px,transparent_1px),linear-gradient(to_bottom,#0000001a_1px,transparent_1px)] bg-[size:10px_10px] [transform:scale(1.5)_rotate(15deg)]"></div>
           </div>
           <div className="flex-1 flex items-center justify-end px-8">
-            <button className="bg-[#ff7a50] flex items-center gap-3 text-black font-bold border-2 border-black py-2 px-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-y-[2px] active:shadow-none transition-all">
+            <Link
+              href={"/profile"}
+              className="bg-[#ff7a50] flex items-center gap-3 text-black font-bold border-2 border-black py-2 px-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-y-[2px] active:shadow-none transition-all"
+            >
               <span>User123</span>
               <svg
                 width="24"
@@ -34,7 +37,7 @@ const Marketplace = () => {
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                 <circle cx="12" cy="7" r="4"></circle>
               </svg>
-            </button>
+            </Link>
           </div>
           <div className="w-20 border-l-2 border-black relative overflow-hidden hidden md:block">
             <div className="absolute inset-0 bg-[linear-gradient(to_right,#0000001a_1px,transparent_1px),linear-gradient(to_bottom,#0000001a_1px,transparent_1px)] bg-[size:14px_14px]"></div>
