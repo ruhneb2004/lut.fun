@@ -9,6 +9,17 @@ import { truncateAddress, useWallet } from "@aptos-labs/wallet-adapter-react";
 const Marketplace = () => {
   const { account } = useWallet();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Filter market data based on search query
+  const filteredData = MARKET_DATA.filter((item) => {
+    const query = searchQuery.toLowerCase();
+    return (
+      item.name.toLowerCase().includes(query) ||
+      item.subname.toLowerCase().includes(query) ||
+      item.contract.toLowerCase().includes(query)
+    );
+  });
 
   return (
     <div className="min-h-screen bg-white text-black font-sans flex flex-col items-center">
@@ -48,14 +59,24 @@ const Marketplace = () => {
 
         {/* --- MAIN CONTENT --- */}
         <main className="flex-1 p-8 md:p-12 flex flex-col gap-16">
-          {/* Search Bar (Static) */}
+          {/* Search Bar */}
           <div className="w-full max-w-2xl mx-auto flex">
             <div className="relative flex-1">
               <input
                 type="text"
-                placeholder="Search..."
+                placeholder="Search by name, subname, or contract..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full border-2 border-black border-r-0 py-3 pl-10 pr-4 font-mono focus:outline-none bg-gray-50 h-12"
               />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-black"
+                >
+                  ✕
+                </button>
+              )}
             </div>
             <button className="bg-[#baff73] border-2 border-black font-bold px-8 h-12 hover:bg-[#a3e660] transition-colors">
               Search
@@ -78,12 +99,18 @@ const Marketplace = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-12">
-              {MARKET_DATA.map((item) => (
-                // 1. Wrap ItemCard in Link passing the ID
-                <Link key={item.id} href={`/marketplace/${item.id}`} onClick={() => console.log("I am Benhur")}>
-                  <ItemCard name={item.name} subname={item.subname} />
-                </Link>
-              ))}
+              {filteredData.length > 0 ? (
+                filteredData.map((item) => (
+                  <Link key={item.id} href={`/marketPlace/${item.id}`}>
+                    <ItemCard name={item.name} subname={item.subname} image={item.image} />
+                  </Link>
+                ))
+              ) : (
+                <div className="col-span-full text-center py-12">
+                  <p className="text-2xl font-black uppercase text-gray-400">No results found</p>
+                  <p className="font-mono text-gray-500 mt-2">Try a different search term</p>
+                </div>
+              )}
             </div>
           </div>
         </main>

@@ -6,4 +6,13 @@ const withPWA = withPWAInit({
 
 // Your Next config is automatically typed!
 export default withPWA({
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'i.seadn.io',
+        pathname: '/**',
+      },
+    ],
+  },
 });

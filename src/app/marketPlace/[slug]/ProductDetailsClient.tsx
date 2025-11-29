@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MARKET_DATA, MarketItem } from "@/app/lib/data";
@@ -10,10 +10,14 @@ import { TOKENS, Token, fromOnChainAmount } from "@/utils/tokens";
 import { usePoolDeposit } from "@/hooks/usePoolDeposit";
 import { usePoolInfo, POOL_STATUS } from "@/hooks/usePoolInfo";
 import { getAccountAPTBalance } from "@/view-functions/getAccountBalance";
+import { getPoolByName, getChartData, getTopHolders, addChartData } from "@/lib/database";
+import type { PoolCreate, ChartData, TopHolder } from "@/types/supabase";
+import { useToast } from "@/components/ui/use-toast";
 
 export default function ProductDetailsClient({ params }: { params: { slug: string } }) {
   const { slug } = params;
   const { account } = useWallet();
+  const { toast } = useToast();
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   // Token and amount states
@@ -47,9 +51,53 @@ export default function ProductDetailsClient({ params }: { params: { slug: strin
   });
   
   const userBalance = balanceData?.balance ? fromOnChainAmount(balanceData.balance, 8) : 0;
+  
+  // Database state
+  const [pool, setPool] = useState<PoolCreate | null>(null);
+  const [chartData, setChartData] = useState<ChartData[]>([]);
+  const [topHolders, setTopHolders] = useState<TopHolder[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Compare using String() to ensure types match
   const product: MarketItem | undefined = MARKET_DATA.find((item) => String(item.id) === slug);
+
+  // Fetch pool data from database
+  useEffect(() => {
+    const fetchPoolData = async () => {
+      if (!product) return;
+      
+      setIsLoading(true);
+      try {
+        // Try to find pool by product name
+        const poolData = await getPoolByName(product.name);
+        
+        if (poolData) {
+          setPool(poolData);
+          
+          // Fetch chart data and top holders
+          const [chartDataResult, topHoldersResult] = await Promise.all([
+            getChartData(poolData.id),
+            getTopHolders(poolData.id)
+          ]);
+          
+          setChartData(chartDataResult);
+          setTopHolders(topHoldersResult);
+        }
+      } catch (error) {
+        console.error("[ProductDetails] Error fetching pool data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPoolData();
+  }, [product]);
+
+  // Calculate holder percentage
+  const calculateHolderPercentage = (holder: TopHolder): string => {
+    if (!pool || pool.total === 0) return "0.00%";
+    return ((holder.ticket_count / pool.total) * 100).toFixed(2) + "%";
+  };
 
   // Debugging: Check your server terminal (not browser console) for this log
   console.log("Slug from URL:", slug);
@@ -136,18 +184,91 @@ export default function ProductDetailsClient({ params }: { params: { slug: strin
             {/* CHART SECTION */}
             <div className="w-full border-2 border-black bg-white p-6 h-[500px] flex flex-col shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
               <div className="mb-4">
-                <p className="font-mono text-sm text-gray-600">Market cap</p>
+                <p className="font-mono text-sm text-gray-600">
+                  {pool ? `Pool Total: ${pool.total} tickets` : "Market cap"}
+                </p>
                 {/* Dynamic Price */}
-                <h3 className="text-4xl font-black uppercase">{product?.price}</h3>
+                <h3 className="text-4xl font-black uppercase">{pool ? `$${pool.pool}` : product?.price}</h3>
                 <p
                   className={`font-mono text-xs font-bold mt-1 ${product?.isPositive ? "text-green-600" : "text-red-600"}`}
                 >
                   {product?.change} (24hr)
                 </p>
+                {pool && (
+                  <p className="font-mono text-xs text-gray-500 mt-1">
+                    Min: {pool.min} | Max: {pool.max}
+                  </p>
+                )}
               </div>
 
-              <div className="flex-1 border border-gray-300 w-full relative bg-white">
+              <div className="flex-1 border border-gray-300 w-full relative bg-white overflow-hidden">
                 <div className="absolute inset-0 bg-[linear-gradient(to_right,#f0f0f0_1px,transparent_1px),linear-gradient(to_bottom,#f0f0f0_1px,transparent_1px)] bg-[size:40px_40px]"></div>
+                
+                {/* Chart visualization from Supabase data */}
+                {chartData.length > 0 && (
+                  <div className="absolute inset-0 p-4 flex flex-col">
+                    {/* Chart legend */}
+                    <div className="flex gap-4 mb-2 text-xs font-mono">
+                      <span className="flex items-center gap-1">
+                        <span className="w-3 h-3 bg-green-500"></span> Buy
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="w-3 h-3 bg-red-500"></span> Sell
+                      </span>
+                    </div>
+                    
+                    {/* Bar chart showing buy/sell activity */}
+                    <div className="flex-1 flex items-end gap-[2px]">
+                      {chartData.slice(-50).map((data) => {
+                        const maxAmount = Math.max(...chartData.map(d => d.amount), 10);
+                        const heightPercent = (data.amount / maxAmount) * 100;
+                        return (
+                          <div
+                            key={data.id}
+                            className="flex-1 flex flex-col items-center justify-end group relative"
+                          >
+                            {/* Tooltip on hover */}
+                            <div className="absolute bottom-full mb-2 hidden group-hover:block bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap z-10">
+                              <div className="font-bold capitalize">{data.action}</div>
+                              <div>Amount: {data.amount}</div>
+                              <div>{new Date(data.created_at || '').toLocaleString()}</div>
+                            </div>
+                            {/* Bar */}
+                            <div
+                              className={`w-full ${data.action === 'buy' ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'} transition-colors cursor-pointer`}
+                              style={{
+                                height: `${Math.max(heightPercent, 5)}%`,
+                                minHeight: '4px'
+                              }}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                    
+                    {/* X-axis time labels */}
+                    <div className="flex justify-between mt-2 text-[10px] font-mono text-gray-500">
+                      {chartData.length > 0 && (
+                        <>
+                          <span>{new Date(chartData[0]?.created_at || '').toLocaleDateString()}</span>
+                          <span>{new Date(chartData[chartData.length - 1]?.created_at || '').toLocaleDateString()}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {chartData.length === 0 && !isLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center text-gray-400 font-mono">
+                    No trading activity yet
+                  </div>
+                )}
+                
+                {isLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center text-gray-400 font-mono">
+                    Loading chart data...
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -262,21 +383,53 @@ export default function ProductDetailsClient({ params }: { params: { slug: strin
                 <button
                   onClick={async () => {
                     if (!account) {
-                      alert("Please connect your wallet first");
+                      toast({
+                        title: "Error",
+                        description: "Please connect your wallet first",
+                        variant: "destructive",
+                      });
                       return;
                     }
                     const numAmount = parseFloat(amount);
                     if (isNaN(numAmount) || numAmount <= 0) {
-                      alert("Please enter a valid amount");
+                      toast({
+                        title: "Error",
+                        description: "Please enter a valid amount",
+                        variant: "destructive",
+                      });
                       return;
                     }
-                    await deposit({
-                      poolAddress,
-                      amount: numAmount,
-                      outcome: selectedOutcome,
-                      token: selectedToken,
-                    });
-                    setAmount(""); // Reset amount after deposit
+                    
+                    try {
+                      // Deposit to blockchain
+                      await deposit({
+                        poolAddress,
+                        amount: numAmount,
+                        outcome: selectedOutcome,
+                        token: selectedToken,
+                      });
+                      
+                      // Record to database
+                      await addChartData({
+                        pool_id: pool?.id || null,
+                        action: activeTab,
+                        amount: numAmount,
+                      });
+                      
+                      toast({
+                        title: "Success!",
+                        description: `${activeTab === "buy" ? "Buy" : "Sell"} action completed`,
+                      });
+                      
+                      setAmount(""); // Reset amount after deposit
+                    } catch (error) {
+                      console.error("[ProductDetails] Transaction error:", error);
+                      toast({
+                        title: "Error",
+                        description: "Transaction failed",
+                        variant: "destructive",
+                      });
+                    }
                   }}
                   disabled={isDepositing || !account || !amount}
                   className={`w-full border-2 border-black py-3 font-black uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all ${
@@ -297,14 +450,28 @@ export default function ProductDetailsClient({ params }: { params: { slug: strin
             <div className="border-2 border-black bg-gray-50 p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
               <h3 className="font-black uppercase text-xl mb-6">TOP HOLDERS</h3>
               <div className="flex flex-col gap-2 font-black text-xs uppercase">
-                {Array.from({ length: 18 }).map((_, i) => (
-                  <div key={i} className="flex items-end w-full">
-                    <span>USER {String(i + 1).padStart(2, "0")}</span>
-                    <div className="flex-1 border-b-2 border-gray-300 mb-1 mx-2"></div>
-                    {/* Dynamic Holders Stat */}
-                    <span>{product?.holders}</span>
-                  </div>
-                ))}
+                {isLoading ? (
+                  <p className="text-gray-500 font-mono normal-case">Loading holders...</p>
+                ) : topHolders.length > 0 ? (
+                  topHolders.map((holder, i) => (
+                    <div key={holder.id} className="flex items-end w-full">
+                      <span className="truncate max-w-[120px]" title={holder.address}>
+                        {truncateAddress(holder.address) || `USER ${String(i + 1).padStart(2, "0")}`}
+                      </span>
+                      <div className="flex-1 border-b-2 border-gray-300 mb-1 mx-2"></div>
+                      <span>{calculateHolderPercentage(holder)}</span>
+                    </div>
+                  ))
+                ) : (
+                  // Fallback to mock data if no database holders
+                  Array.from({ length: 18 }).map((_, i) => (
+                    <div key={i} className="flex items-end w-full">
+                      <span>USER {String(i + 1).padStart(2, "0")}</span>
+                      <div className="flex-1 border-b-2 border-gray-300 mb-1 mx-2"></div>
+                      <span>{product?.holders}</span>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>

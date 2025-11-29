@@ -1,5 +1,11 @@
 import { supabase } from "./supabase";
-import type { UserDetails, UserDetailsInsert, UserDetailsUpdate, LotteryHistory, LotteryHistoryInsert } from "@/types/supabase";
+import type { 
+  UserDetails, UserDetailsInsert, UserDetailsUpdate, 
+  LotteryHistory, LotteryHistoryInsert,
+  PoolCreate, PoolCreateInsert, PoolCreateUpdate,
+  ChartData, ChartDataInsert,
+  TopHolder, TopHolderInsert
+} from "@/types/supabase";
 
 // ======================== User Details Functions ========================
 
@@ -240,4 +246,329 @@ export async function getActiveLotteries(userAddress: string): Promise<LotteryHi
   }
 
   return data || [];
+}
+
+// ======================== Pool Create Functions ========================
+
+/**
+ * Create a new pool
+ */
+export async function createPool(pool: PoolCreateInsert): Promise<PoolCreate | null> {
+  console.log("[DB] Creating new pool:", pool);
+  
+  const { data, error } = await supabase
+    .from("pool_create")
+    .insert([pool])
+    .select()
+    .single();
+
+  if (error) {
+    console.error("[DB] Error creating pool:", error);
+    console.error("[DB] Error details:", JSON.stringify(error, null, 2));
+    return null;
+  }
+
+  console.log("[DB] Successfully created pool:", data);
+  return data;
+}
+
+/**
+ * Get a pool by ID
+ */
+export async function getPoolById(poolId: string): Promise<PoolCreate | null> {
+  const { data, error } = await supabase
+    .from("pool_create")
+    .select("*")
+    .eq("id", poolId)
+    .single();
+
+  if (error) {
+    if (error.code !== "PGRST116") {
+      console.error("[DB] Error fetching pool:", error);
+    }
+    return null;
+  }
+
+  return data;
+}
+
+/**
+ * Get a pool by name
+ */
+export async function getPoolByName(name: string): Promise<PoolCreate | null> {
+  const { data, error } = await supabase
+    .from("pool_create")
+    .select("*")
+    .eq("name", name)
+    .single();
+
+  if (error) {
+    if (error.code !== "PGRST116") {
+      console.error("[DB] Error fetching pool by name:", error);
+    }
+    return null;
+  }
+
+  return data;
+}
+
+/**
+ * Get all pools
+ */
+export async function getAllPools(): Promise<PoolCreate[]> {
+  const { data, error } = await supabase
+    .from("pool_create")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("[DB] Error fetching all pools:", error);
+    return [];
+  }
+
+  return data || [];
+}
+
+/**
+ * Update pool details
+ */
+export async function updatePool(poolId: string, updates: PoolCreateUpdate): Promise<PoolCreate | null> {
+  const { data, error } = await supabase
+    .from("pool_create")
+    .update(updates)
+    .eq("id", poolId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("[DB] Error updating pool:", error);
+    return null;
+  }
+
+  return data;
+}
+
+/**
+ * Update pool total (after buy/sell)
+ */
+export async function updatePoolTotal(poolId: string, newTotal: number): Promise<PoolCreate | null> {
+  return updatePool(poolId, { total: newTotal });
+}
+
+// ======================== Chart Data Functions ========================
+
+/**
+ * Add chart data entry (for buy/sell actions)
+ */
+export async function addChartData(entry: ChartDataInsert): Promise<ChartData | null> {
+  console.log("[DB] Adding chart data:", entry);
+  
+  const { data, error } = await supabase
+    .from("chart_data")
+    .insert([entry])
+    .select()
+    .single();
+
+  if (error) {
+    console.error("[DB] Error adding chart data:", error);
+    console.error("[DB] Error details:", JSON.stringify(error, null, 2));
+    return null;
+  }
+
+  console.log("[DB] Successfully added chart data:", data);
+  return data;
+}
+
+/**
+ * Get chart data for a pool
+ */
+export async function getChartData(poolId: string): Promise<ChartData[]> {
+  const { data, error } = await supabase
+    .from("chart_data")
+    .select("*")
+    .eq("pool_id", poolId)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("[DB] Error fetching chart data:", error);
+    return [];
+  }
+
+  return data || [];
+}
+
+/**
+ * Get recent chart data for a pool (limited)
+ */
+export async function getRecentChartData(poolId: string, limit: number = 100): Promise<ChartData[]> {
+  const { data, error } = await supabase
+    .from("chart_data")
+    .select("*")
+    .eq("pool_id", poolId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("[DB] Error fetching recent chart data:", error);
+    return [];
+  }
+
+  // Return in ascending order for chart display
+  return (data || []).reverse();
+}
+
+// ======================== Top Holders Functions ========================
+
+/**
+ * Upsert (insert or update) a top holder entry
+ * This should be called when a user buys or sells tickets
+ */
+export async function upsertTopHolder(entry: TopHolderInsert): Promise<TopHolder | null> {
+  console.log("[DB] Upserting top holder:", entry);
+  
+  // Check if holder already exists for this pool
+  const { data: existingHolder } = await supabase
+    .from("top_holders")
+    .select("*")
+    .eq("pool_id", entry.pool_id!)
+    .eq("address", entry.address)
+    .single();
+
+  if (existingHolder) {
+    // Update existing holder
+    const { data, error } = await supabase
+      .from("top_holders")
+      .update({
+        ticket_count: entry.ticket_count,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", existingHolder.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("[DB] Error updating top holder:", error);
+      return null;
+    }
+
+    console.log("[DB] Successfully updated top holder:", data);
+    return data;
+  } else {
+    // Insert new holder
+    const { data, error } = await supabase
+      .from("top_holders")
+      .insert([{
+        ...entry,
+        updated_at: new Date().toISOString()
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error("[DB] Error inserting top holder:", error);
+      console.error("[DB] Error details:", JSON.stringify(error, null, 2));
+      return null;
+    }
+
+    console.log("[DB] Successfully inserted top holder:", data);
+    return data;
+  }
+}
+
+/**
+ * Get top holders for a pool (sorted by ticket count descending)
+ */
+export async function getTopHolders(poolId: string, limit: number = 10): Promise<TopHolder[]> {
+  const { data, error } = await supabase
+    .from("top_holders")
+    .select("*")
+    .eq("pool_id", poolId)
+    .order("ticket_count", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("[DB] Error fetching top holders:", error);
+    return [];
+  }
+
+  return data || [];
+}
+
+/**
+ * Get holder info for a specific address in a pool
+ */
+export async function getHolderByAddress(poolId: string, address: string): Promise<TopHolder | null> {
+  const { data, error } = await supabase
+    .from("top_holders")
+    .select("*")
+    .eq("pool_id", poolId)
+    .eq("address", address)
+    .single();
+
+  if (error) {
+    if (error.code !== "PGRST116") {
+      console.error("[DB] Error fetching holder:", error);
+    }
+    return null;
+  }
+
+  return data;
+}
+
+/**
+ * Update holder ticket count (add or subtract)
+ */
+export async function updateHolderTicketCount(
+  poolId: string, 
+  address: string, 
+  ticketChange: number
+): Promise<TopHolder | null> {
+  // Get current holder info
+  const holder = await getHolderByAddress(poolId, address);
+  
+  if (holder) {
+    const newCount = holder.ticket_count + ticketChange;
+    
+    // If new count is 0 or less, remove the holder
+    if (newCount <= 0) {
+      await supabase
+        .from("top_holders")
+        .delete()
+        .eq("id", holder.id);
+      return null;
+    }
+    
+    return upsertTopHolder({
+      pool_id: poolId,
+      address,
+      ticket_count: newCount
+    });
+  } else if (ticketChange > 0) {
+    // New holder
+    return upsertTopHolder({
+      pool_id: poolId,
+      address,
+      ticket_count: ticketChange
+    });
+  }
+  
+  return null;
+}
+
+/**
+ * Delete a holder (when they sell all tickets)
+ */
+export async function deleteHolder(poolId: string, address: string): Promise<boolean> {
+  const { error } = await supabase
+    .from("top_holders")
+    .delete()
+    .eq("pool_id", poolId)
+    .eq("address", address);
+
+  if (error) {
+    console.error("[DB] Error deleting holder:", error);
+    return false;
+  }
+
+  return true;
 }
