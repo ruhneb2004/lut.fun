@@ -4,12 +4,49 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MARKET_DATA, MarketItem } from "@/app/lib/data";
 import { truncateAddress, useWallet } from "@aptos-labs/wallet-adapter-react";
+import { useQuery } from "@tanstack/react-query";
 import HowItWorksModal from "@/components/HowItWorksModal";
+import { TOKENS, Token, fromOnChainAmount } from "@/utils/tokens";
+import { usePoolDeposit } from "@/hooks/usePoolDeposit";
+import { usePoolInfo, POOL_STATUS } from "@/hooks/usePoolInfo";
+import { getAccountAPTBalance } from "@/view-functions/getAccountBalance";
 
 export default function ProductDetailsClient({ params }: { params: { slug: string } }) {
   const { slug } = params;
   const { account } = useWallet();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // Token and amount states
+  const [selectedToken, setSelectedToken] = useState<Token>(TOKENS[0]); // Default to APT
+  const [amount, setAmount] = useState<string>("");
+  const [isTokenDropdownOpen, setIsTokenDropdownOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"buy" | "sell">("buy");
+  const selectedOutcome = "YES"; // Default outcome for deposit
+  
+  // Pool deposit hook
+  const { deposit, isLoading: isDepositing } = usePoolDeposit();
+  
+  // Mock pool address - in production, this would come from your pool factory
+  const poolAddress = "0x79bdc9ccd66851423ad43d18b391822a72200d52a2310e902bacf287df9355d1";
+  
+  // Get pool info
+  const { data: poolInfo } = usePoolInfo(poolAddress);
+  
+  // Get user's APT balance
+  const { data: balanceData } = useQuery({
+    queryKey: ["apt-balance", account?.address],
+    enabled: !!account?.address,
+    refetchInterval: 10_000,
+    queryFn: async () => {
+      if (!account) return { balance: 0 };
+      const balance = await getAccountAPTBalance({ 
+        accountAddress: account.address.toStringLong() 
+      });
+      return { balance };
+    },
+  });
+  
+  const userBalance = balanceData?.balance ? fromOnChainAmount(balanceData.balance, 8) : 0;
 
   // Compare using String() to ensure types match
   const product: MarketItem | undefined = MARKET_DATA.find((item) => String(item.id) === slug);
@@ -33,7 +70,7 @@ export default function ProductDetailsClient({ params }: { params: { slug: strin
 
           <div className="flex-1 flex items-center justify-between px-8">
             {/* Back Navigation */}
-            <Link href="/marketPlace" className="font-mono font-bold text-sm underline hover:text-gray-600">
+            <Link href="/marketplace" className="font-mono font-bold text-sm underline hover:text-gray-600">
               ← Back to Market
             </Link>
 
@@ -118,25 +155,142 @@ export default function ProductDetailsClient({ params }: { params: { slug: strin
           {/* === RIGHT COLUMN === */}
           <div className="w-full lg:w-80 flex flex-col gap-8">
             <div className="border-2 border-black bg-gray-50 p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+              {/* Buy/Sell Tabs */}
               <div className="flex gap-4 mb-6 justify-center">
-                <button className="flex-1 bg-[#57f287] border-2 border-black py-2 font-black uppercase shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-[2px] active:shadow-none transition-all">
+                <button
+                  onClick={() => setActiveTab("buy")}
+                  className={`flex-1 border-2 border-black py-2 font-black uppercase shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-[2px] active:shadow-none transition-all ${
+                    activeTab === "buy" ? "bg-[#57f287]" : "bg-gray-200"
+                  }`}
+                >
                   Buy
                 </button>
-                <button className="flex-1 bg-[#ffbd59] border-2 border-black py-2 font-black uppercase shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-[2px] active:shadow-none transition-all">
+                <button
+                  onClick={() => setActiveTab("sell")}
+                  className={`flex-1 border-2 border-black py-2 font-black uppercase shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-[2px] active:shadow-none transition-all ${
+                    activeTab === "sell" ? "bg-[#ffbd59]" : "bg-gray-200"
+                  }`}
+                >
                   Sell
                 </button>
               </div>
+              
               <div className="flex flex-col gap-4">
+                {/* Token Selector Dropdown */}
                 <div className="relative">
-                  <div className="border-2 border-black bg-white h-10 w-full flex items-center px-2 cursor-pointer hover:bg-gray-100">
-                    <span className="ml-auto">⌄</span>
+                  <label className="text-xs font-bold uppercase text-gray-600 mb-1 block">Token</label>
+                  <div
+                    onClick={() => setIsTokenDropdownOpen(!isTokenDropdownOpen)}
+                    className="border-2 border-black bg-white h-12 w-full flex items-center px-4 cursor-pointer hover:bg-gray-100"
+                  >
+                    <div className="flex items-center gap-2 flex-1">
+                      <span className="font-bold">{selectedToken.symbol}</span>
+                      <span className="text-gray-500 text-sm">{selectedToken.name}</span>
+                    </div>
+                    <span className={`transition-transform ${isTokenDropdownOpen ? "rotate-180" : ""}`}>⌄</span>
+                  </div>
+                  
+                  {/* Dropdown Options */}
+                  {isTokenDropdownOpen && (
+                    <div className="absolute z-10 w-full mt-1 border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                      {TOKENS.map((token) => (
+                        <div
+                          key={token.symbol}
+                          onClick={() => {
+                            setSelectedToken(token);
+                            setIsTokenDropdownOpen(false);
+                          }}
+                          className={`px-4 py-3 flex items-center gap-2 cursor-pointer hover:bg-gray-100 border-b border-gray-200 last:border-b-0 ${
+                            selectedToken.symbol === token.symbol ? "bg-gray-100" : ""
+                          }`}
+                        >
+                          <span className="font-bold">{token.symbol}</span>
+                          <span className="text-gray-500 text-sm">{token.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
+                {/* Amount Input */}
+                <div className="relative">
+                  <label className="text-xs font-bold uppercase text-gray-600 mb-1 block">Amount</label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      placeholder="0.00"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      className="border-2 border-black bg-white h-12 w-full px-4 pr-16 font-mono focus:outline-none focus:ring-2 focus:ring-black"
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-gray-500">
+                      {selectedToken.symbol}
+                    </span>
+                  </div>
+                  <div className="flex justify-between mt-1 text-xs text-gray-500">
+                    <span>Balance: {userBalance.toFixed(4)} {selectedToken.symbol}</span>
+                    <button
+                      onClick={() => setAmount(userBalance.toString())}
+                      className="text-blue-600 hover:underline font-bold"
+                    >
+                      MAX
+                    </button>
                   </div>
                 </div>
-                <div className="relative">
-                  <div className="border-2 border-black bg-white h-10 w-full flex items-center px-2 cursor-pointer hover:bg-gray-100">
-                    <span className="ml-auto">⌄</span>
+                
+                {/* Pool Info */}
+                {poolInfo && (
+                  <div className="bg-gray-100 border border-gray-300 p-3 text-xs font-mono">
+                    <div className="flex justify-between mb-1">
+                      <span>Pool Status:</span>
+                      <span className={poolInfo.status === POOL_STATUS.OPEN ? "text-green-600" : "text-red-600"}>
+                        {poolInfo.status === POOL_STATUS.OPEN ? "OPEN" : poolInfo.status === POOL_STATUS.LOCKED ? "LOCKED" : "RESOLVED"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between mb-1">
+                      <span>Min Entry:</span>
+                      <span>{fromOnChainAmount(poolInfo.minEntry, 8)} APT</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Total Pool:</span>
+                      <span>{fromOnChainAmount(poolInfo.totalPoolAmount, 8)} APT</span>
+                    </div>
                   </div>
-                </div>
+                )}
+                
+                {/* Submit Button */}
+                <button
+                  onClick={async () => {
+                    if (!account) {
+                      alert("Please connect your wallet first");
+                      return;
+                    }
+                    const numAmount = parseFloat(amount);
+                    if (isNaN(numAmount) || numAmount <= 0) {
+                      alert("Please enter a valid amount");
+                      return;
+                    }
+                    await deposit({
+                      poolAddress,
+                      amount: numAmount,
+                      outcome: selectedOutcome,
+                      token: selectedToken,
+                    });
+                    setAmount(""); // Reset amount after deposit
+                  }}
+                  disabled={isDepositing || !account || !amount}
+                  className={`w-full border-2 border-black py-3 font-black uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all ${
+                    activeTab === "buy" ? "bg-[#57f287]" : "bg-[#ffbd59]"
+                  } ${isDepositing || !account || !amount ? "opacity-50 cursor-not-allowed" : ""}`}
+                >
+                  {isDepositing ? "Processing..." : activeTab === "buy" ? "Buy Tickets" : "Sell Tickets"}
+                </button>
+                
+                {!account && (
+                  <p className="text-xs text-center text-red-500 font-bold">
+                    Connect wallet to {activeTab}
+                  </p>
+                )}
               </div>
             </div>
 

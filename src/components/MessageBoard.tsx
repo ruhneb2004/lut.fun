@@ -57,7 +57,7 @@ export function MessageBoard() {
         return;
       }
 
-      const committedTransaction = await (client.useABI(MESSAGE_BOARD_ABI) as any).post_message({
+      const committedTransaction = await (client.useABI(MESSAGE_BOARD_ABI as any) as any).post_message({
         type_arguments: [],
         arguments: [newMessageContent],
       });

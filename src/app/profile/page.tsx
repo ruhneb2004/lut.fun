@@ -108,7 +108,7 @@ const LoadingSpinner = () => (
 
 const NotConnected = () => {
   const router = useRouter();
-  
+
   return (
     <div className="min-h-screen bg-[#f0f0f0] flex items-center justify-center">
       <div className="text-center p-8 border-2 border-black bg-white shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
@@ -133,14 +133,7 @@ const ProfilePage: React.FC = () => {
   const { toast } = useToast();
   const router = useRouter();
 
-  const {
-    userDetails,
-    lotteryHistory,
-    isLoadingUser,
-    isLoadingHistory,
-    userAddress,
-    isConnected,
-  } = useUserDatabase();
+  const { userDetails, lotteryHistory, isLoadingUser, isLoadingHistory, userAddress, isConnected } = useUserDatabase();
 
   // Copy address to clipboard
   const copyAddress = async () => {
@@ -188,7 +181,10 @@ const ProfilePage: React.FC = () => {
             <div className="absolute inset-0 bg-[radial-gradient(circle,_#000_1px,_transparent_1px)] [background-size:8px_8px]"></div>
           </div>
           <div className="flex-1 flex items-center justify-between px-8">
-            <button onClick={() => router.push("/")} className="text-2xl font-black italic tracking-tighter hover:opacity-70 transition-opacity">
+            <button
+              onClick={() => router.push("/")}
+              className="text-2xl font-black italic tracking-tighter hover:opacity-70 transition-opacity"
+            >
               LUT.FUN
             </button>
             <div className="flex gap-4">
@@ -220,7 +216,7 @@ const ProfilePage: React.FC = () => {
                       className="w-full h-full object-cover"
                     />
                   </div>
-                  
+
                   {isLoadingUser ? (
                     <div className="h-12 flex items-center">
                       <LucideLoader2 className="w-6 h-6 animate-spin" />
@@ -230,7 +226,7 @@ const ProfilePage: React.FC = () => {
                       {displayName}
                     </h2>
                   )}
-                  
+
                   <p className="font-mono text-sm font-bold mb-6">Joined: {joinedAt}</p>
 
                   {/* Wallet Pill */}
@@ -271,18 +267,8 @@ const ProfilePage: React.FC = () => {
                     icon={LucideTrophy}
                     color="bg-[#baff73]"
                   />
-                  <StatBox
-                    label="Active Tickets"
-                    value={activeTickets}
-                    icon={LucideTicket}
-                    color="bg-[#ff7a50]"
-                  />
-                  <StatBox
-                    label="Games Played"
-                    value={gamesPlayed}
-                    icon={LucideHistory}
-                    color="bg-[#a2d2ff]"
-                  />
+                  <StatBox label="Active Tickets" value={activeTickets} icon={LucideTicket} color="bg-[#ff7a50]" />
+                  <StatBox label="Games Played" value={gamesPlayed} icon={LucideHistory} color="bg-[#a2d2ff]" />
                   <div className="bg-black text-white border-2 border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] flex flex-col justify-between group">
                     <div>
                       <p className="font-mono text-sm opacity-70 uppercase tracking-wider mb-1">Win Rate</p>
@@ -300,9 +286,7 @@ const ProfilePage: React.FC = () => {
                 <div className="absolute inset-0 opacity-10 bg-[linear-gradient(45deg,#000_25%,transparent_25%,transparent_75%,#000_75%,#000),linear-gradient(45deg,#000_25%,transparent_25%,transparent_75%,#000_75%,#000)] bg-[length:20px_20px] bg-[position:0_0,10px_10px]"></div>
                 <div className="relative z-10">
                   <h3 className="text-2xl font-black uppercase mb-2">Ready for the next big win?</h3>
-                  <p className="font-mono mb-4 max-w-md">
-                    Check out the latest lotteries and try your luck!
-                  </p>
+                  <p className="font-mono mb-4 max-w-md">Check out the latest lotteries and try your luck!</p>
                   <button
                     onClick={() => router.push("/marketplace")}
                     className="bg-[#baff73] border-2 border-black px-6 py-2 font-bold uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"

@@ -1,1 +1,1 @@
-export const MESSAGE_BOARD_ABI = undefined;
+export const MESSAGE_BOARD_ABI = [] as const;
