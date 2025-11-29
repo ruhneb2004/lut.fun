@@ -5,6 +5,7 @@ module safebet::prize_pool {
     use aptos_framework::aptos_coin::AptosCoin;
     use aptos_framework::event;
     use aptos_std::smart_table::{Self, SmartTable};
+    use safebet::pool;
     use aptos_std::table::{Self, Table};
 
     /// Error codes
@@ -125,8 +126,6 @@ module safebet::prize_pool {
         user: &signer,
         registry_addr: address,
         pool_address: address,
-        user_principal: u64,
-        is_winner: bool,
     ) acquires PrizePoolRegistry {
         let user_addr = signer::address_of(user);
         let registry = borrow_global_mut<PrizePoolRegistry>(registry_addr);
@@ -140,6 +139,10 @@ module safebet::prize_pool {
         };
 
         let distribution = table::borrow(&registry.distributions, pool_address);
+
+        // Securely fetch user data from the pool contract
+        let (user_principal, _, _) = pool::get_participant_info(pool_address, user_addr);
+        let is_winner = pool::is_winner(pool_address, user_addr);
 
         // Calculate claim amount
         let claim_amount = if (is_winner) {

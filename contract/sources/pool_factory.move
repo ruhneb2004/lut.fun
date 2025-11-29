@@ -6,8 +6,9 @@ module safebet::pool_factory {
     use std::vector;
     use aptos_framework::account::{Self, SignerCapability};
     use aptos_framework::event;
-    use aptos_std::table::{Self, Table};
     use aptos_std::bcs;
+    use aptos_std::table::{Self, Table};
+    use safebet::pool;
 
     /// Error codes
     const E_NOT_AUTHORIZED: u64 = 1;
@@ -79,6 +80,7 @@ module safebet::pool_factory {
         creator: &signer,
         factory_addr: address,
         name: String,
+        outcomes: vector<String>,
         min_entry: u64,
         max_entry: u64,
         betting_duration: u64,
@@ -107,6 +109,18 @@ module safebet::pool_factory {
         );
         let pool_address = signer::address_of(&pool_resource_signer);
 
+        // Initialize the actual pool contract
+        pool::initialize_pool(
+            &pool_resource_signer,
+            name,
+            creator_addr,
+            min_entry,
+            max_entry,
+            outcomes,
+            betting_duration,
+            lock_duration,
+        );
+
         // Create pool metadata
         let metadata = PoolMetadata {
             pool_address,
@@ -125,9 +139,6 @@ module safebet::pool_factory {
         vector::push_back(&mut factory.pool_addresses, pool_address);
         vector::push_back(&mut factory.active_pools, pool_address);
         factory.total_pools_created = factory.total_pools_created + 1;
-
-        // Initialize the actual pool contract
-        // This will be called from pool.move
         
         // Emit event
         event::emit(PoolCreatedEvent {

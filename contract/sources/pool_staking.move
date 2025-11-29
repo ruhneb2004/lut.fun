@@ -1,10 +1,9 @@
 /// PoolStaking - Manages staking pool funds to Aave for yield generation
 module safebet::pool_staking {
-    use std::signer;
     use aptos_framework::coin::{Self, Coin};
     use aptos_framework::aptos_coin::AptosCoin;
-    use aptos_framework::timestamp;
     use aptos_framework::event;
+    use aptos_framework::timestamp;
     use aptos_std::table::{Self, Table};
 
     /// Error codes
@@ -26,6 +25,7 @@ module safebet::pool_staking {
     /// Global staking registry
     struct StakingRegistry has key {
         positions: Table<address, StakingPosition>,
+        staking_vault: Coin<AptosCoin>,
         total_staked: u64,
         total_yield_generated: u64,
     }
@@ -51,25 +51,28 @@ module safebet::pool_staking {
     fun init_module(deployer: &signer) {
         move_to(deployer, StakingRegistry {
             positions: table::new(),
+            staking_vault: coin::zero<AptosCoin>(),
             total_staked: 0,
             total_yield_generated: 0,
         });
     }
 
     /// Stake pool funds to Aave
-    public entry fun stake_to_aave(
-        manager: &signer,
+    public fun stake_to_aave(
+        _manager: &signer,
         registry_addr: address,
         pool_address: address,
-        amount: u64,
+        funds: Coin<AptosCoin>,
         unlock_time: u64,
     ) acquires StakingRegistry {
         let registry = borrow_global_mut<StakingRegistry>(registry_addr);
         
         assert!(!table::contains(&registry.positions, pool_address), E_ALREADY_STAKED);
 
-        // In production, deposit to Aave here:
-        // let aave_position_id = aave::pool::supply<AptosCoin>(manager, funds);
+        let amount = coin::value(&funds);
+
+        // In production, deposit to Aave here. For now, we just hold the funds.
+        coin::merge(&mut registry.staking_vault, funds);
         
         // For hackathon: simulate Aave position
         let aave_position_id = amount; // Mock ID
@@ -97,10 +100,10 @@ module safebet::pool_staking {
 
     /// Unstake from Aave and calculate yield
     public fun unstake_from_aave(
-        manager: &signer,
+        _manager: &signer,
         registry_addr: address,
         pool_address: address,
-    ): (u64, u64) acquires StakingRegistry {
+    ): (Coin<AptosCoin>, u64) acquires StakingRegistry {
         let registry = borrow_global_mut<StakingRegistry>(registry_addr);
         
         assert!(table::contains(&registry.positions, pool_address), E_POOL_NOT_STAKED);
@@ -110,30 +113,27 @@ module safebet::pool_staking {
         assert!(position.is_active, E_POOL_NOT_STAKED);
         assert!(timestamp::now_seconds() >= position.unlock_time, E_TOO_EARLY);
 
-        let principal = position.staked_amount;
-        
-        // In production, withdraw from Aave:
-        // let (principal_returned, yield_earned) = aave::pool::withdraw<AptosCoin>(
-        //     manager,
-        //     position.aave_position_id
-        // );
+        let principal_amount = position.staked_amount;
         
         // For hackathon: simulate 10% APY yield
         let time_staked = timestamp::now_seconds() - position.staked_at;
         let years_staked = (time_staked as u128) * 1000000 / (365 * 24 * 60 * 60 * 1000000); // Fixed point
-        let yield_earned = ((principal as u128) * 10 * years_staked / 100) as u64; // 10% APY
+        let yield_earned = ((principal_amount as u128) * 10 * years_staked / 100) as u64; // 10% APY
+
+        // Withdraw principal from vault
+        let principal_coin = coin::extract(&mut registry.staking_vault, principal_amount);
 
         position.is_active = false;
         registry.total_yield_generated = registry.total_yield_generated + yield_earned;
 
         event::emit(UnstakedEvent {
             pool_address,
-            principal,
+            principal: principal_amount,
             yield_earned,
             timestamp: timestamp::now_seconds(),
         });
 
-        (principal, yield_earned)
+        (principal_coin, yield_earned)
     }
 
     /// Get current yield estimate

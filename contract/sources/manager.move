@@ -4,11 +4,10 @@ module safebet::manager {
     use std::signer;
     use std::string::String;
     use std::vector;
-    use aptos_framework::timestamp;
     use aptos_framework::account::{Self, SignerCapability};
+    use aptos_framework::coin;
     use aptos_framework::event;
-    use aptos_framework::coin::{Self, Coin};
-    use aptos_framework::aptos_coin::AptosCoin;
+    use aptos_framework::timestamp;
     use safebet::pool;
     use safebet::pool_staking;
     use safebet::prize_pool;
@@ -77,17 +76,18 @@ module safebet::manager {
         pool::lock_pool(&manager_signer, pool_address);
 
         // 2. Get pool info to determine stake amount and unlock time
-        let (_, _, _, betting_deadline, resolution_time, status, total_amount) = 
+        let (_, _, _, _, resolution_time, _, total_amount) = 
             pool::get_pool_info(pool_address);
 
-        // 3. Transfer funds from pool to staking
-        // Note: This would require pool to have a function to transfer funds
-        // For now, we'll stake directly
+        // 3. Withdraw funds from the pool
+        let pool_funds = pool::withdraw_funds(&manager_signer, pool_address);
+
+        // 4. Stake funds
         pool_staking::stake_to_aave(
             &manager_signer,
             config.staking_registry_addr,
             pool_address,
-            total_amount,
+            pool_funds,
             resolution_time
         );
 
@@ -111,17 +111,18 @@ module safebet::manager {
         let manager_signer = account::create_signer_with_capability(&config.manager_signer_cap);
 
         // 1. Get pool info
-        let (_, _, _, _, resolution_time, status, _) = 
+        let (_, _, _, _, resolution_time, _, _) = 
             pool::get_pool_info(pool_address);
         
         assert!(timestamp::now_seconds() >= resolution_time, E_TOO_EARLY);
 
         // 2. Unstake from Aave
-        let (principal, yield_earned) = pool_staking::unstake_from_aave(
+        let (principal_coin, yield_earned) = pool_staking::unstake_from_aave(
             &manager_signer,
             config.staking_registry_addr,
             pool_address
         );
+        let principal_amount = coin::value(&principal_coin);
 
         // 3. Set winner in pool
         pool::set_winner(&manager_signer, pool_address, winning_outcome);
@@ -132,20 +133,22 @@ module safebet::manager {
         let total_participants = pool::get_participant_count(pool_address);
         let loser_count = total_participants - winner_count;
 
-        // 5. Setup prize distribution
+        // 5. Deposit funds to prize pool
+        prize_pool::deposit_prize_funds(
+            config.prize_pool_registry_addr,
+            principal_coin
+        );
+
+        // 6. Setup prize distribution
         prize_pool::setup_distribution(
             &manager_signer,
             config.prize_pool_registry_addr,
             pool_address,
-            principal,
+            principal_amount,
             yield_earned,
             winner_count,
             loser_count
         );
-
-        // 6. Deposit funds to prize pool
-        // In production, transfer funds from staking to prize pool
-        // For now, funds are managed internally
 
         event::emit(PoolResolvedEvent {
             pool_address,
@@ -174,11 +177,11 @@ module safebet::manager {
         let config = borrow_global<ManagerConfig>(config_addr);
         
         // Get pool outcomes
-        let (_, _, _, _, resolution_time, _, _) = 
+        let (_, _, _, _, _, _, _) = 
             pool::get_pool_info(pool_address);
 
-        // Simple random: use timestamp + pool address as seed
-        let seed = (timestamp::now_seconds() as u64) + (@pool_address as u64);
+        // Simple random: use timestamp as seed
+        let seed = timestamp::now_seconds();
         
         // Get all outcomes from pool (this would need a view function in pool contract)
         // For now, assume we have outcomes

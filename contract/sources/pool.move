@@ -202,18 +202,14 @@ module safebet::pool {
         });
     }
 
-    /// Transfer pool balance to staking contract
-    public fun transfer_to_staking(
-        pool_signer: &signer,
-        staking_addr: address,
+    /// Withdraw all funds from the pool (called by manager)
+    public fun withdraw_funds(
+        _manager: &signer,
+        pool_addr: address,
     ): Coin<AptosCoin> acquires PoolState {
-        let pool_addr = signer::address_of(pool_signer);
         let pool = borrow_global_mut<PoolState>(pool_addr);
-        
-        assert!(pool.status == STATUS_LOCKED, E_NOT_INITIALIZED);
-        
-        let amount = pool.total_pool_amount;
-        coin::extract(&mut pool.pool_balance, amount)
+        assert!(pool.status == STATUS_LOCKED, E_POOL_LOCKED);
+        coin::extract_all(&mut pool.pool_balance)
     }
 
     /// Receive funds back from prize pool
