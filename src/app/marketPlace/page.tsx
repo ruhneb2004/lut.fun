@@ -55,8 +55,13 @@ const Marketplace = () => {
 
           {/* LISTINGS */}
           <div className="flex flex-col gap-8">
-            <div className="bg-[#ff6b6b] border-2 border-black w-fit px-8 py-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-              <h2 className="text-2xl font-black uppercase tracking-widest">ALL LISTINGS</h2>
+            <div className="flex items-center">
+              <div className="bg-[#ff6b6b] border-2 border-black w-fit px-8 py-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                <h2 className="text-2xl font-black uppercase tracking-widest">ALL LISTINGS</h2>
+              </div>
+              <div className="bg-[#4fe869] border-2 border-black w-fit px-8 py-1 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ">
+                <h2 className="text-2xl font-black uppercase tracking-widest">CREATE LOTTERY</h2>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-12">
