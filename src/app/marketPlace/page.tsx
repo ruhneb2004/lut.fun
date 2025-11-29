@@ -1,13 +1,17 @@
 "use client";
-// app/marketplace/page.jsx
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import ItemCard from "@/components/ItemComp"; // Ensure this path matches your project
 import { MARKET_DATA } from "../lib/data";
+import CreateLotteryModal from "@/components/CreateLotteryModal";
 
 const Marketplace = () => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-white text-black font-sans flex flex-col items-center">
+      <CreateLotteryModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+
       <div className="w-full max-w-7xl border-x-2 border-black min-h-screen flex flex-col bg-white">
         {/* --- HEADER --- */}
         <header className="flex justify-between items-stretch border-b-2 border-black h-20">
@@ -55,13 +59,17 @@ const Marketplace = () => {
 
           {/* LISTINGS */}
           <div className="flex flex-col gap-8">
-            <div className="flex items-center">
-              <div className="bg-[#ff6b6b] border-2 border-black w-fit px-8 py-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+            <div className="flex justify-between items-center flex-wrap gap-4">
+              <div className="bg-[#ff6b6b] border-2 border-black w-fit px-8 py-2 ">
                 <h2 className="text-2xl font-black uppercase tracking-widest">ALL LISTINGS</h2>
               </div>
-              <div className="bg-[#4fe869] border-2 border-black w-fit px-8 py-1 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ">
+
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="bg-[#4fe869] border-2 border-black w-fit px-8 py-2 cursor-pointer shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all"
+              >
                 <h2 className="text-2xl font-black uppercase tracking-widest">CREATE LOTTERY</h2>
-              </div>
+              </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-12">
