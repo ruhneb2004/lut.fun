@@ -41,9 +41,8 @@ module safebet::pool {
         max_entry: u64,
         
         // Timing
-        betting_deadline: u64,
-        resolution_time: u64,
         created_at: u64,
+        last_draw_at: u64,
         
         // Status
         status: u8,
@@ -92,8 +91,6 @@ module safebet::pool {
         min_entry: u64,
         max_entry: u64,
         outcomes: vector<String>,
-        betting_duration: u64,
-        lock_duration: u64,
     ) {
         let current_time = timestamp::now_seconds();
         
@@ -112,9 +109,8 @@ module safebet::pool {
             creator,
             min_entry,
             max_entry,
-            betting_deadline: current_time + betting_duration,
-            resolution_time: current_time + betting_duration + lock_duration,
             created_at: current_time,
+            last_draw_at: 0,
             status: STATUS_OPEN,
             outcomes,
             outcome_totals,
@@ -128,7 +124,7 @@ module safebet::pool {
         });
     }
 
-    /// User deposits/bets on outcome
+    /// User deposits/bets on outcome (continuous betting until draw)
     public entry fun deposit(
         user: &signer,
         pool_addr: address,
@@ -138,9 +134,8 @@ module safebet::pool {
         let user_addr = signer::address_of(user);
         let pool = borrow_global_mut<PoolState>(pool_addr);
         
-        // Validations
+        // Validations - betting is open as long as pool status is OPEN
         assert!(pool.status == STATUS_OPEN, E_BETTING_CLOSED);
-        assert!(timestamp::now_seconds() <= pool.betting_deadline, E_BETTING_CLOSED);
         assert!(amount >= pool.min_entry && amount <= pool.max_entry, E_INVALID_AMOUNT);
         assert!(smart_table::contains(&pool.outcome_totals, outcome), E_INVALID_AMOUNT);
         assert!(!smart_table::contains(&pool.participants, user_addr), E_ALREADY_DEPOSITED);
@@ -182,15 +177,15 @@ module safebet::pool {
         });
     }
 
-    /// Lock pool (called by manager after betting ends)
+    /// Lock pool for draw (called by manager when initiating periodic draw)
     public entry fun lock_pool(
         _manager: &signer,
         pool_addr: address,
     ) acquires PoolState {
         let pool = borrow_global_mut<PoolState>(pool_addr);
         
+        // Pool must be open to lock
         assert!(pool.status == STATUS_OPEN, E_POOL_LOCKED);
-        assert!(timestamp::now_seconds() > pool.betting_deadline, E_BETTING_CLOSED);
 
         pool.status = STATUS_LOCKED;
 
@@ -247,6 +242,9 @@ module safebet::pool {
             
             i = i + 1;
         };
+        
+        // Record draw time
+        pool.last_draw_at = timestamp::now_seconds();
     }
 
     // ============ View Functions ============
@@ -260,8 +258,8 @@ module safebet::pool {
             pool.name,
             pool.min_entry,
             pool.max_entry,
-            pool.betting_deadline,
-            pool.resolution_time,
+            pool.created_at,
+            pool.last_draw_at,
             pool.status,
             pool.total_pool_amount
         )

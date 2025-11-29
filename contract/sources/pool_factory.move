@@ -23,8 +23,6 @@ module safebet::pool_factory {
         name: String,
         min_entry: u64,
         max_entry: u64,
-        betting_duration: u64,
-        lock_duration: u64,
         created_at: u64,
         is_active: bool,
     }
@@ -58,8 +56,6 @@ module safebet::pool_factory {
 
     /// Initialize the factory (called once at deployment)
     fun init_module(deployer: &signer) {
-        let deployer_addr = signer::address_of(deployer);
-        
         // Create resource account for pool creation
         let (_, pool_creator_cap) = account::create_resource_account(
             deployer,
@@ -83,14 +79,10 @@ module safebet::pool_factory {
         outcomes: vector<String>,
         min_entry: u64,
         max_entry: u64,
-        betting_duration: u64,
-        lock_duration: u64,
     ) acquires PoolFactoryRegistry {
         // Validation
         assert!(min_entry > 0, E_INVALID_PARAMS);
         assert!(max_entry >= min_entry, E_INVALID_PARAMS);
-        assert!(betting_duration >= 3600, E_INVALID_PARAMS); // Min 1 hour
-        assert!(lock_duration >= 86400, E_INVALID_PARAMS); // Min 1 day
 
         let creator_addr = signer::address_of(creator);
         let factory = borrow_global_mut<PoolFactoryRegistry>(factory_addr);
@@ -117,8 +109,6 @@ module safebet::pool_factory {
             min_entry,
             max_entry,
             outcomes,
-            betting_duration,
-            lock_duration,
         );
 
         // Create pool metadata
@@ -128,8 +118,6 @@ module safebet::pool_factory {
             name,
             min_entry,
             max_entry,
-            betting_duration,
-            lock_duration,
             created_at: aptos_framework::timestamp::now_seconds(),
             is_active: true,
         };

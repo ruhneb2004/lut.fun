@@ -79,9 +79,9 @@ export function usePoolDeposit() {
       return executedTransaction;
     } catch (error: any) {
       console.error("Deposit error:", error);
-      
+
       let errorMessage = "Failed to deposit. Please try again.";
-      
+
       // Parse common error messages
       if (error?.message?.includes("E_BETTING_CLOSED")) {
         errorMessage = "Betting is closed for this pool";
@@ -98,7 +98,7 @@ export function usePoolDeposit() {
         title: "Transaction Failed",
         description: errorMessage,
       });
-      
+
       return null;
     } finally {
       setIsLoading(false);

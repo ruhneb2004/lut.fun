@@ -15,23 +15,23 @@ export default function ProductDetailsClient({ params }: { params: { slug: strin
   const { slug } = params;
   const { account } = useWallet();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
+
   // Token and amount states
   const [selectedToken, setSelectedToken] = useState<Token>(TOKENS[0]); // Default to APT
   const [amount, setAmount] = useState<string>("");
   const [isTokenDropdownOpen, setIsTokenDropdownOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"buy" | "sell">("buy");
   const selectedOutcome = "YES"; // Default outcome for deposit
-  
+
   // Pool deposit hook
   const { deposit, isLoading: isDepositing } = usePoolDeposit();
-  
+
   // Mock pool address - in production, this would come from your pool factory
   const poolAddress = "0x79bdc9ccd66851423ad43d18b391822a72200d52a2310e902bacf287df9355d1";
-  
+
   // Get pool info
   const { data: poolInfo } = usePoolInfo(poolAddress);
-  
+
   // Get user's APT balance
   const { data: balanceData } = useQuery({
     queryKey: ["apt-balance", account?.address],
@@ -39,13 +39,13 @@ export default function ProductDetailsClient({ params }: { params: { slug: strin
     refetchInterval: 10_000,
     queryFn: async () => {
       if (!account) return { balance: 0 };
-      const balance = await getAccountAPTBalance({ 
-        accountAddress: account.address.toStringLong() 
+      const balance = await getAccountAPTBalance({
+        accountAddress: account.address.toStringLong(),
       });
       return { balance };
     },
   });
-  
+
   const userBalance = balanceData?.balance ? fromOnChainAmount(balanceData.balance, 8) : 0;
 
   // Compare using String() to ensure types match
@@ -174,7 +174,7 @@ export default function ProductDetailsClient({ params }: { params: { slug: strin
                   Sell
                 </button>
               </div>
-              
+
               <div className="flex flex-col gap-4">
                 {/* Token Selector Dropdown */}
                 <div className="relative">
@@ -189,7 +189,7 @@ export default function ProductDetailsClient({ params }: { params: { slug: strin
                     </div>
                     <span className={`transition-transform ${isTokenDropdownOpen ? "rotate-180" : ""}`}>⌄</span>
                   </div>
-                  
+
                   {/* Dropdown Options */}
                   {isTokenDropdownOpen && (
                     <div className="absolute z-10 w-full mt-1 border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
@@ -211,7 +211,7 @@ export default function ProductDetailsClient({ params }: { params: { slug: strin
                     </div>
                   )}
                 </div>
-                
+
                 {/* Amount Input */}
                 <div className="relative">
                   <label className="text-xs font-bold uppercase text-gray-600 mb-1 block">Amount</label>
@@ -228,7 +228,9 @@ export default function ProductDetailsClient({ params }: { params: { slug: strin
                     </span>
                   </div>
                   <div className="flex justify-between mt-1 text-xs text-gray-500">
-                    <span>Balance: {userBalance.toFixed(4)} {selectedToken.symbol}</span>
+                    <span>
+                      Balance: {userBalance.toFixed(4)} {selectedToken.symbol}
+                    </span>
                     <button
                       onClick={() => setAmount(userBalance.toString())}
                       className="text-blue-600 hover:underline font-bold"
@@ -237,14 +239,18 @@ export default function ProductDetailsClient({ params }: { params: { slug: strin
                     </button>
                   </div>
                 </div>
-                
+
                 {/* Pool Info */}
                 {poolInfo && (
                   <div className="bg-gray-100 border border-gray-300 p-3 text-xs font-mono">
                     <div className="flex justify-between mb-1">
                       <span>Pool Status:</span>
                       <span className={poolInfo.status === POOL_STATUS.OPEN ? "text-green-600" : "text-red-600"}>
-                        {poolInfo.status === POOL_STATUS.OPEN ? "OPEN" : poolInfo.status === POOL_STATUS.LOCKED ? "LOCKED" : "RESOLVED"}
+                        {poolInfo.status === POOL_STATUS.OPEN
+                          ? "OPEN"
+                          : poolInfo.status === POOL_STATUS.LOCKED
+                            ? "LOCKED"
+                            : "RESOLVED"}
                       </span>
                     </div>
                     <div className="flex justify-between mb-1">
@@ -257,7 +263,7 @@ export default function ProductDetailsClient({ params }: { params: { slug: strin
                     </div>
                   </div>
                 )}
-                
+
                 {/* Submit Button */}
                 <button
                   onClick={async () => {
@@ -285,11 +291,9 @@ export default function ProductDetailsClient({ params }: { params: { slug: strin
                 >
                   {isDepositing ? "Processing..." : activeTab === "buy" ? "Buy Tickets" : "Sell Tickets"}
                 </button>
-                
+
                 {!account && (
-                  <p className="text-xs text-center text-red-500 font-bold">
-                    Connect wallet to {activeTab}
-                  </p>
+                  <p className="text-xs text-center text-red-500 font-bold">Connect wallet to {activeTab}</p>
                 )}
               </div>
             </div>

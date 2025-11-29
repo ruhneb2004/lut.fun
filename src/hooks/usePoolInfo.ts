@@ -10,8 +10,8 @@ export interface PoolInfo {
   name: string;
   minEntry: number;
   maxEntry: number;
-  bettingDeadline: number;
-  resolutionTime: number;
+  createdAt: number;
+  lastDrawAt: number;
   status: number;
   totalPoolAmount: number;
 }
@@ -46,13 +46,13 @@ export function usePoolInfo(poolAddress: string | undefined) {
           },
         });
 
-        // Result is [name, min_entry, max_entry, betting_deadline, resolution_time, status, total_pool_amount]
+        // Result is [name, min_entry, max_entry, created_at, last_draw_at, status, total_pool_amount]
         return {
           name: result[0] as string,
           minEntry: Number(result[1]),
           maxEntry: Number(result[2]),
-          bettingDeadline: Number(result[3]),
-          resolutionTime: Number(result[4]),
+          createdAt: Number(result[3]),
+          lastDrawAt: Number(result[4]),
           status: Number(result[5]),
           totalPoolAmount: Number(result[6]),
         };
@@ -83,7 +83,7 @@ export function useParticipantInfo(poolAddress: string | undefined, userAddress:
 
         // Result is [amount, outcome, ticket_count]
         const amount = Number(result[0]);
-        
+
         // If amount is 0, user hasn't participated
         if (amount === 0) return null;
 

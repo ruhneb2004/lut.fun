@@ -85,16 +85,7 @@ export const POOL_FACTORY_ABI = {
       is_entry: true,
       is_view: false,
       generic_type_params: [],
-      params: [
-        "&signer",
-        "address",
-        "0x1::string::String",
-        "vector<0x1::string::String>",
-        "u64",
-        "u64",
-        "u64",
-        "u64",
-      ],
+      params: ["&signer", "address", "0x1::string::String", "vector<0x1::string::String>", "u64", "u64", "u64", "u64"],
       return: [],
     },
     {

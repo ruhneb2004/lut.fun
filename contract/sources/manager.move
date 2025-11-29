@@ -17,6 +17,9 @@ module safebet::manager {
     const E_TOO_EARLY: u64 = 2;
     const E_ALREADY_PROCESSED: u64 = 3;
 
+    /// Draw interval (7 days in seconds)
+    const DRAW_INTERVAL: u64 = 604800; // 7 * 24 * 60 * 60
+
     /// Manager configuration
     struct ManagerConfig has key {
         admin: address,
@@ -61,9 +64,9 @@ module safebet::manager {
         });
     }
 
-    /// Lock pool and stake to Aave (called after betting period ends)
+    /// Lock pool and stake to Aave (called by manager for periodic draw)
     public entry fun lock_and_stake(
-        caller: &signer,
+        _caller: &signer,
         config_addr: address,
         pool_address: address,
     ) acquires ManagerConfig {
@@ -75,20 +78,21 @@ module safebet::manager {
         // 1. Lock the pool
         pool::lock_pool(&manager_signer, pool_address);
 
-        // 2. Get pool info to determine stake amount and unlock time
-        let (_, _, _, _, resolution_time, _, total_amount) = 
+        // 2. Get pool info to determine stake amount
+        let (_, _, _, _, _, _, total_amount) = 
             pool::get_pool_info(pool_address);
 
         // 3. Withdraw funds from the pool
         let pool_funds = pool::withdraw_funds(&manager_signer, pool_address);
 
-        // 4. Stake funds
+        // 4. Stake funds (unlock after DRAW_INTERVAL for staking yield)
+        let unlock_time = timestamp::now_seconds() + DRAW_INTERVAL;
         pool_staking::stake_to_aave(
             &manager_signer,
             config.staking_registry_addr,
             pool_address,
             pool_funds,
-            resolution_time
+            unlock_time
         );
 
         event::emit(PoolLockedAndStakedEvent {
@@ -98,9 +102,9 @@ module safebet::manager {
         });
     }
 
-    /// Resolve pool and distribute prizes (called after resolution time)
+    /// Resolve pool and distribute prizes (called by manager for periodic draw)
     public entry fun resolve_and_distribute(
-        caller: &signer,
+        _caller: &signer,
         config_addr: address,
         pool_address: address,
         winning_outcome: String,
@@ -110,13 +114,7 @@ module safebet::manager {
         // Get manager signer
         let manager_signer = account::create_signer_with_capability(&config.manager_signer_cap);
 
-        // 1. Get pool info
-        let (_, _, _, _, resolution_time, _, _) = 
-            pool::get_pool_info(pool_address);
-        
-        assert!(timestamp::now_seconds() >= resolution_time, E_TOO_EARLY);
-
-        // 2. Unstake from Aave
+        // 1. Unstake from Aave (will check unlock_time internally)
         let (principal_coin, yield_earned) = pool_staking::unstake_from_aave(
             &manager_signer,
             config.staking_registry_addr,
@@ -124,22 +122,22 @@ module safebet::manager {
         );
         let principal_amount = coin::value(&principal_coin);
 
-        // 3. Set winner in pool
+        // 2. Set winner in pool
         pool::set_winner(&manager_signer, pool_address, winning_outcome);
 
-        // 4. Get winner/loser counts
-        let (winning_outcome_final, winner_addresses) = pool::get_winner_info(pool_address);
+        // 3. Get winner/loser counts
+        let (_, winner_addresses) = pool::get_winner_info(pool_address);
         let winner_count = vector::length(&winner_addresses);
         let total_participants = pool::get_participant_count(pool_address);
         let loser_count = total_participants - winner_count;
 
-        // 5. Deposit funds to prize pool
+        // 4. Deposit funds to prize pool
         prize_pool::deposit_prize_funds(
             config.prize_pool_registry_addr,
             principal_coin
         );
 
-        // 6. Setup prize distribution
+        // 5. Setup prize distribution
         prize_pool::setup_distribution(
             &manager_signer,
             config.prize_pool_registry_addr,
@@ -168,18 +166,12 @@ module safebet::manager {
         *vector::borrow(&outcomes, random_index)
     }
 
-    /// Auto-resolve with random winner
+    /// Auto-resolve with random winner (called periodically by manager)
     public entry fun auto_resolve(
         caller: &signer,
         config_addr: address,
         pool_address: address,
     ) acquires ManagerConfig {
-        let config = borrow_global<ManagerConfig>(config_addr);
-        
-        // Get pool outcomes
-        let (_, _, _, _, _, _, _) = 
-            pool::get_pool_info(pool_address);
-
         // Simple random: use timestamp as seed
         let seed = timestamp::now_seconds();
         
