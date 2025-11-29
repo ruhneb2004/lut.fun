@@ -1,17 +1,7 @@
 // Internal components
 import { Button } from "@/components/ui/button";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,14 +23,7 @@ import {
   truncateAddress,
   useWallet,
 } from "@aptos-labs/wallet-adapter-react";
-import {
-  ArrowLeft,
-  ArrowRight,
-  ChevronDown,
-  Copy,
-  LogOut,
-  User,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, ChevronDown, Copy, LogOut, User } from "lucide-react";
 import { useCallback, useState } from "react";
 
 export function WalletSelector() {
@@ -70,9 +53,7 @@ export function WalletSelector() {
   return connected ? (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button>
-          {account?.ansName || truncateAddress(account?.address.toStringLong()) || "Unknown"}
-        </Button>
+        <button>{account?.ansName || truncateAddress(account?.address.toStringLong()) || "Unknown"}</button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem onSelect={copyAddress} className="gap-2">
@@ -80,12 +61,7 @@ export function WalletSelector() {
         </DropdownMenuItem>
         {wallet && isAptosConnectWallet(wallet) && (
           <DropdownMenuItem asChild>
-            <a
-              href={APTOS_CONNECT_ACCOUNT_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex gap-2"
-            >
+            <a href={APTOS_CONNECT_ACCOUNT_URL} target="_blank" rel="noopener noreferrer" className="flex gap-2">
               <User className="h-4 w-4" /> Account
             </a>
           </DropdownMenuItem>
@@ -98,7 +74,7 @@ export function WalletSelector() {
   ) : (
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
       <DialogTrigger asChild>
-        <Button>Connect a Wallet</Button>
+        <button>Connect a Wallet</button>
       </DialogTrigger>
       <ConnectWalletDialog close={closeDialog} />
     </Dialog>
@@ -111,7 +87,10 @@ interface ConnectWalletDialogProps {
 
 function ConnectWalletDialog({ close }: ConnectWalletDialogProps) {
   const { wallets = [], notDetectedWallets = [] } = useWallet();
-  const { aptosConnectWallets, availableWallets, installableWallets } = groupAndSortWallets([...wallets, ...notDetectedWallets]);
+  const { aptosConnectWallets, availableWallets, installableWallets } = groupAndSortWallets([
+    ...wallets,
+    ...notDetectedWallets,
+  ]);
 
   const hasAptosConnectWallets = !!aptosConnectWallets.length;
 
@@ -134,11 +113,7 @@ function ConnectWalletDialog({ close }: ConnectWalletDialogProps) {
         {hasAptosConnectWallets && (
           <div className="flex flex-col gap-2 pt-3">
             {aptosConnectWallets.map((wallet) => (
-              <AptosConnectWalletRow
-                key={wallet.name}
-                wallet={wallet}
-                onConnect={close}
-              />
+              <AptosConnectWalletRow key={wallet.name} wallet={wallet} onConnect={close} />
             ))}
             <p className="flex gap-1 justify-center items-center text-muted-foreground text-sm">
               Learn more about{" "}
@@ -169,17 +144,13 @@ function ConnectWalletDialog({ close }: ConnectWalletDialogProps) {
           {!!installableWallets.length && (
             <Collapsible className="flex flex-col gap-3">
               <CollapsibleTrigger asChild>
-                <Button size="sm" variant="ghost" className="gap-2">
+                <button className="gap-2">
                   More wallets <ChevronDown />
-                </Button>
+                </button>
               </CollapsibleTrigger>
               <CollapsibleContent className="flex flex-col gap-3">
                 {installableWallets.map((wallet) => (
-                  <WalletRow
-                    key={wallet.name}
-                    wallet={wallet}
-                    onConnect={close}
-                  />
+                  <WalletRow key={wallet.name} wallet={wallet} onConnect={close} />
                 ))}
               </CollapsibleContent>
             </Collapsible>
@@ -207,12 +178,12 @@ function WalletRow({ wallet, onConnect }: WalletRowProps) {
         <WalletItem.Name className="text-base font-normal" />
       </div>
       {isInstallRequired(wallet) ? (
-        <Button size="sm" variant="ghost" asChild>
+        <button>
           <WalletItem.InstallLink />
-        </Button>
+        </button>
       ) : (
         <WalletItem.ConnectButton asChild>
-          <Button size="sm">Connect</Button>
+          <button>Connect</button>
         </WalletItem.ConnectButton>
       )}
     </WalletItem>
@@ -239,9 +210,7 @@ function renderEducationScreen(screen: AboutAptosConnectEducationScreen) {
         <Button variant="ghost" size="icon" onClick={screen.cancel}>
           <ArrowLeft />
         </Button>
-        <DialogTitle className="leading-snug text-base text-center">
-          About Aptos Connect
-        </DialogTitle>
+        <DialogTitle className="leading-snug text-base text-center">About Aptos Connect</DialogTitle>
       </DialogHeader>
 
       <div className="flex h-[162px] pb-3 items-end justify-center">
@@ -253,12 +222,7 @@ function renderEducationScreen(screen: AboutAptosConnectEducationScreen) {
       </div>
 
       <div className="grid grid-cols-3 items-center">
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={screen.back}
-          className="justify-self-start"
-        >
+        <Button size="sm" variant="ghost" onClick={screen.back} className="justify-self-start">
           Back
         </Button>
         <div className="flex items-center gap-2 place-self-center">
@@ -268,12 +232,7 @@ function renderEducationScreen(screen: AboutAptosConnectEducationScreen) {
             </ScreenIndicator>
           ))}
         </div>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={screen.next}
-          className="gap-2 justify-self-end"
-        >
+        <Button size="sm" variant="ghost" onClick={screen.next} className="gap-2 justify-self-end">
           {screen.screenIndex === screen.totalScreens - 1 ? "Finish" : "Next"}
           <ArrowRight size={16} />
         </Button>

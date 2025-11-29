@@ -1,11 +1,23 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import HowItWorksModal from "@/components/HowItWorksModal";
-import Link from "next/link";
+import { WalletSelector } from "@/components/WalletSelector";
+import { useWallet } from "@aptos-labs/wallet-adapter-react";
+import { useRouter } from "next/navigation";
 
 const LandingPage = () => {
-  // 1. Add state to control the modal
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // 1. Get connection state and router
+  const { connected, isLoading } = useWallet();
+  const router = useRouter();
+
+  // 2. Effect to redirect on successful connection
+  useEffect(() => {
+    if (connected && !isLoading) {
+      router.push("/marketplace");
+    }
+  }, [connected, isLoading, router]);
 
   return (
     <div className="min-h-screen bg-white text-black font-sans selection:bg-black selection:text-white flex flex-col items-center">
@@ -18,7 +30,6 @@ const LandingPage = () => {
           </div>
 
           <div className="flex-1 flex items-center justify-end px-8 gap-8">
-            {/* 2. Update the "How it works" link to trigger the modal */}
             <button
               onClick={() => setIsModalOpen(true)}
               className="font-mono font-bold hover:underline bg-transparent border-none cursor-pointer"
@@ -26,12 +37,10 @@ const LandingPage = () => {
               How it works
             </button>
 
-            <Link
-              href={"/marketplace"}
-              className="bg-[#ff7a50] text-black font-bold border-2 border-black py-3 px-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
-            >
-              Connect Wallet
-            </Link>
+            {/* Note: The redirect logic handles the navigation, so we just show the selector here */}
+            <div className="bg-[#ff7a50] text-black font-bold border-2 border-black py-3 px-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all">
+              <WalletSelector />
+            </div>
           </div>
 
           <div className="w-20 border-l-2 border-black relative overflow-hidden hidden md:block">
@@ -58,12 +67,10 @@ const LandingPage = () => {
               <h2 className="text-2xl md:text-3xl font-black uppercase max-w-lg leading-tight">
                 Deposit USDC to win prizes, rewards, and contribute to a good cause
               </h2>
-              <Link
-                href={"/marketplace"}
-                className="bg-white text-black font-black border-2 border-black py-4 px-12 text-lg uppercase shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all"
-              >
-                Connect Wallet
-              </Link>
+              {/* Wallet Selector in the Hero Section */}
+              <div className="bg-white text-black font-black border-2 border-black py-4 px-12 text-lg uppercase shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all">
+                <WalletSelector />
+              </div>
             </div>
           </div>
         </main>
@@ -74,7 +81,7 @@ const LandingPage = () => {
             {Array(10)
               .fill("")
               .map((_, i) => (
-                <React.Fragment key={i}>
+                <React.Fragment key={`marquee-1-${i}`}>
                   <span>16.29 won 117 days ago</span>
                   <span className="text-black">♦</span>
                 </React.Fragment>
@@ -84,7 +91,7 @@ const LandingPage = () => {
             {Array(10)
               .fill("")
               .map((_, i) => (
-                <React.Fragment key={i}>
+                <React.Fragment key={`marquee-2-${i}`}>
                   <span>16.29 won 117 days ago</span>
                   <span className="text-black">♦</span>
                 </React.Fragment>
@@ -92,14 +99,18 @@ const LandingPage = () => {
           </div>
         </footer>
 
-        {/* 3. Render the Modal Component at the bottom, outside the footer/main flow */}
+        {/* Modal Component */}
         <HowItWorksModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
       </div>
 
-      <style>{`
+      <style jsx global>{`
         @keyframes marquee {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-100%); }
+          0% {
+            transform: translateX(0);
+          }
+          100% {
+            transform: translateX(-100%);
+          }
         }
         .animate-marquee {
           animation: marquee 20s linear infinite;

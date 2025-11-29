@@ -1,12 +1,27 @@
 [package]
-name = "MessageBoard"
+name = "SafeBet"
 version = "1.0.0"
-authors = []
+authors = ["SafeBet Team"]
 
 [addresses]
-message_board_addr = "_"
+safebet = "_"
 
-[dependencies]
-AptosFramework = { git = "https://github.com/aptos-labs/aptos-framework.git", rev = "mainnet", subdir = "aptos-framework" }
+[dev-addresses]
+
+[dependencies.AptosFramework]
+git = "https://github.com/aptos-labs/aptos-core.git"
+rev = "mainnet"
+subdir = "aptos-move/framework/aptos-framework"
+
+[dependencies.AptosStdlib]
+git = "https://github.com/aptos-labs/aptos-core.git"
+rev = "mainnet"
+subdir = "aptos-move/framework/aptos-stdlib"
+
+# Uncomment when integrating with Aave
+# [dependencies.Aave]
+# git = "https://github.com/aave/aptos-aave-v3.git"
+# rev = "main"
+# subdir = "aave-pool"
 
 [dev-dependencies]
