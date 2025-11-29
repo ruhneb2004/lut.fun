@@ -15,7 +15,7 @@ const LandingPage = () => {
   // 2. Effect to redirect on successful connection
   useEffect(() => {
     if (connected && !isLoading) {
-      router.push("/marketplace");
+      router.push("/marketPlace");
     }
   }, [connected, isLoading, router]);
 

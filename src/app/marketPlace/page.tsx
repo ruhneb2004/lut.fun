@@ -80,7 +80,7 @@ const Marketplace = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-12">
               {MARKET_DATA.map((item) => (
                 // 1. Wrap ItemCard in Link passing the ID
-                <Link key={item.id} href={`/marketplace/${item.id}`} onClick={() => console.log("I am Benhur")}>
+                <Link key={item.id} href={`/marketPlace/${item.id}`} onClick={() => console.log("I am Benhur")}>
                   <ItemCard name={item.name} subname={item.subname} />
                 </Link>
               ))}

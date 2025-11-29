@@ -33,7 +33,7 @@ export default function ProductDetailsClient({ params }: { params: { slug: strin
 
           <div className="flex-1 flex items-center justify-between px-8">
             {/* Back Navigation */}
-            <Link href="/marketplace" className="font-mono font-bold text-sm underline hover:text-gray-600">
+            <Link href="/marketPlace" className="font-mono font-bold text-sm underline hover:text-gray-600">
               ← Back to Market
             </Link>
 
