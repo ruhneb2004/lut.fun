@@ -4,7 +4,7 @@ import { Aptos, AptosConfig } from "@aptos-labs/ts-sdk";
 const aptos = new Aptos(
   new AptosConfig({
     network: NETWORK,
-    clientConfig: { API_KEY: "AG-LA1Q5TNVBDBFBDJNTUOR2BTA8Y12KWI7Q" },
+    clientConfig: { API_KEY: "AG-7MBOK8SVDRZQB9M2QMOPHV1XT2GQAF8YR" },
   }),
 );
 

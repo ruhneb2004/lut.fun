@@ -9,7 +9,7 @@ import { Token, toOnChainAmount } from "@/utils/tokens";
 
 // Contract address for the SafeBet pool module
 const SAFEBET_ADDRESS =
-  process.env.NEXT_PUBLIC_MODULE_ADDRESS || "0x37d65db16d842570eb3f6feb83a89537e05f85f1bb2016b6e5a4c7cb64ba5997";
+  process.env.NEXT_PUBLIC_MODULE_ADDRESS || "0xb339b0b5ea892c5e3f24a0a62e22319d17d0ec6f7dff905314c6e5e9755b88ae";
 
 export interface DepositParams {
   poolAddress: string;

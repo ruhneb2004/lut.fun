@@ -7,7 +7,7 @@ import { toast } from "@/components/ui/use-toast";
 import { aptosClient } from "@/utils/aptosClient";
 
 // Contract address for the SafeBet pool factory module
-const SAFEBET_ADDRESS = "0x37d65db16d842570eb3f6feb83a89537e05f85f1bb2016b6e5a4c7cb64ba5997";
+const SAFEBET_ADDRESS = "0xb339b0b5ea892c5e3f24a0a62e22319d17d0ec6f7dff905314c6e5e9755b88ae";
 
 export interface CreatePoolParams {
   name: string;
