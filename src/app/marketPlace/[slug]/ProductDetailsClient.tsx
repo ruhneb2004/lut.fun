@@ -498,7 +498,7 @@ export default function ProductDetailsClient({ params }: { params: { slug: strin
                       className="border-2 border-black bg-white h-12 w-full px-4 pr-16 font-mono focus:outline-none focus:ring-2 focus:ring-black"
                     />
                     <span className="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-gray-500">
-                      {selectedToken.symbol}
+                      {activeTab === "buy" ? selectedToken.symbol : ""}
                     </span>
                   </div>
                   <div className="flex justify-between mt-1 text-xs text-gray-500">

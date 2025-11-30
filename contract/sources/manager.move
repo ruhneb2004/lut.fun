@@ -5,20 +5,14 @@ module safebet::manager {
     use std::string::String;
     use std::vector;
     use aptos_framework::account::{Self, SignerCapability};
-    use aptos_framework::coin;
     use aptos_framework::event;
     use aptos_framework::timestamp;
     use safebet::pool;
-    use safebet::pool_staking;
-    use safebet::prize_pool;
 
     /// Error codes
     const E_NOT_AUTHORIZED: u64 = 1;
     const E_TOO_EARLY: u64 = 2;
     const E_ALREADY_PROCESSED: u64 = 3;
-
-    /// Draw interval (7 days in seconds)
-    const DRAW_INTERVAL: u64 = 604800; // 7 * 24 * 60 * 60
 
     /// Manager configuration
     struct ManagerConfig has key {
@@ -31,17 +25,9 @@ module safebet::manager {
 
     /// Events
     #[event]
-    struct PoolLockedAndStakedEvent has drop, store {
-        pool_address: address,
-        amount_staked: u64,
-        timestamp: u64,
-    }
-
-    #[event]
     struct PoolResolvedEvent has drop, store {
         pool_address: address,
         winning_outcome: String,
-        yield_earned: u64,
         timestamp: u64,
     }
 
@@ -58,101 +44,9 @@ module safebet::manager {
         move_to(deployer, ManagerConfig {
             admin: deployer_addr,
             manager_signer_cap,
-            staking_registry_addr: @safebet, // Will be set after deployment
-            prize_pool_registry_addr: @safebet, // Will be set after deployment
+            staking_registry_addr: @safebet,
+            prize_pool_registry_addr: @safebet,
             automation_enabled: true,
-        });
-    }
-
-    /// Lock pool and stake to Aave (called by manager for periodic draw)
-    public entry fun lock_and_stake(
-        _caller: &signer,
-        config_addr: address,
-        pool_address: address,
-    ) acquires ManagerConfig {
-        let config = borrow_global_mut<ManagerConfig>(config_addr);
-        
-        // Get manager signer
-        let manager_signer = account::create_signer_with_capability(&config.manager_signer_cap);
-
-        // 1. Lock the pool
-        pool::lock_pool(&manager_signer, pool_address);
-
-        // 2. Get pool info to determine stake amount
-        let (_, _, _, _, _, _, total_amount) = 
-            pool::get_pool_info(pool_address);
-
-        // 3. Withdraw funds from the pool
-        let pool_funds = pool::withdraw_funds(&manager_signer, pool_address);
-
-        // 4. Stake funds (unlock after DRAW_INTERVAL for staking yield)
-        let unlock_time = timestamp::now_seconds() + DRAW_INTERVAL;
-        pool_staking::stake_to_aave(
-            &manager_signer,
-            config.staking_registry_addr,
-            pool_address,
-            pool_funds,
-            unlock_time
-        );
-
-        event::emit(PoolLockedAndStakedEvent {
-            pool_address,
-            amount_staked: total_amount,
-            timestamp: timestamp::now_seconds(),
-        });
-    }
-
-    /// Resolve pool and distribute prizes (called by manager for periodic draw)
-    public entry fun resolve_and_distribute(
-        _caller: &signer,
-        config_addr: address,
-        pool_address: address,
-        winning_outcome: String,
-    ) acquires ManagerConfig {
-        let config = borrow_global_mut<ManagerConfig>(config_addr);
-        
-        // Get manager signer
-        let manager_signer = account::create_signer_with_capability(&config.manager_signer_cap);
-
-        // 1. Unstake from Aave (will check unlock_time internally)
-        let (principal_coin, yield_earned) = pool_staking::unstake_from_aave(
-            &manager_signer,
-            config.staking_registry_addr,
-            pool_address
-        );
-        let principal_amount = coin::value(&principal_coin);
-
-        // 2. Set winner in pool
-        pool::set_winner(&manager_signer, pool_address, winning_outcome);
-
-        // 3. Get winner/loser counts
-        let (_, winner_addresses) = pool::get_winner_info(pool_address);
-        let winner_count = vector::length(&winner_addresses);
-        let total_participants = pool::get_participant_count(pool_address);
-        let loser_count = total_participants - winner_count;
-
-        // 4. Deposit funds to prize pool
-        prize_pool::deposit_prize_funds(
-            config.prize_pool_registry_addr,
-            principal_coin
-        );
-
-        // 5. Setup prize distribution
-        prize_pool::setup_distribution(
-            &manager_signer,
-            config.prize_pool_registry_addr,
-            pool_address,
-            principal_amount,
-            yield_earned,
-            winner_count,
-            loser_count
-        );
-
-        event::emit(PoolResolvedEvent {
-            pool_address,
-            winning_outcome,
-            yield_earned,
-            timestamp: timestamp::now_seconds(),
         });
     }
 
@@ -166,24 +60,39 @@ module safebet::manager {
         *vector::borrow(&outcomes, random_index)
     }
 
-    /// Auto-resolve with random winner (called periodically by manager)
+    /// Auto-resolve with random winner - SIMPLIFIED VERSION WITHOUT STAKING
+    /// This version directly picks a winner without locking/staking
     public entry fun auto_resolve(
-        caller: &signer,
+        _caller: &signer,
         config_addr: address,
         pool_address: address,
     ) acquires ManagerConfig {
+        let config = borrow_global<ManagerConfig>(config_addr);
+        
+        // Get manager signer
+        let manager_signer = account::create_signer_with_capability(&config.manager_signer_cap);
+
         // Simple random: use timestamp as seed
         let seed = timestamp::now_seconds();
         
-        // Get all outcomes from pool (this would need a view function in pool contract)
-        // For now, assume we have outcomes
+        // Define outcomes
         let outcomes = vector::empty<String>();
         vector::push_back(&mut outcomes, std::string::utf8(b"Outcome A"));
         vector::push_back(&mut outcomes, std::string::utf8(b"Outcome B"));
         
         let winning_outcome = pick_random_winner(outcomes, seed);
 
-        resolve_and_distribute(caller, config_addr, pool_address, winning_outcome);
+        // Lock the pool first
+        pool::lock_pool(&manager_signer, pool_address);
+
+        // Set winner directly (no staking involved)
+        pool::set_winner(&manager_signer, pool_address, winning_outcome);
+
+        event::emit(PoolResolvedEvent {
+            pool_address,
+            winning_outcome,
+            timestamp: timestamp::now_seconds(),
+        });
     }
 
     // ============ Admin Functions ============
