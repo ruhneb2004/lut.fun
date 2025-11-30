@@ -1,4 +1,4 @@
-# LUT.FUN - No-Loss on Aptos
+# LUT.FUN - Creator lot on aptos
 
 <div align="center">
 
