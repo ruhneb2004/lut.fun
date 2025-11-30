@@ -1,4 +1,4 @@
-# LUT.FUN - No-Loss Lot on Aptos
+# LUT.FUN - No-Loss on Aptos
 
 <div align="center">
 
