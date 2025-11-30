@@ -76,10 +76,26 @@ module safebet::pool {
     }
 
     #[event]
+    struct WithdrawEvent has drop, store {
+        pool_address: address,
+        participant: address,
+        amount: u64,
+        timestamp: u64,
+    }
+
+    #[event]
     struct PoolLockedEvent has drop, store {
         pool_address: address,
         total_amount: u64,
         total_participants: u64,
+        timestamp: u64,
+    }
+
+    #[event]
+    struct YieldAddedEvent has drop, store {
+        pool_address: address,
+        amount: u64,
+        new_total: u64,
         timestamp: u64,
     }
 
@@ -177,6 +193,54 @@ module safebet::pool {
         });
     }
 
+    /// User withdraws their deposit and exits the pool
+    /// Can only withdraw while pool is OPEN (before draw)
+    public entry fun withdraw(
+        user: &signer,
+        pool_addr: address,
+    ) acquires PoolState {
+        let user_addr = signer::address_of(user);
+        let pool = borrow_global_mut<PoolState>(pool_addr);
+        
+        // Validations
+        assert!(pool.status == STATUS_OPEN, E_POOL_LOCKED); // Can only withdraw while pool is open
+        assert!(smart_table::contains(&pool.participants, user_addr), E_NOT_PARTICIPANT);
+
+        // Get participant info before removing
+        let participant = smart_table::borrow(&pool.participants, user_addr);
+        let withdraw_amount = participant.amount;
+        let participant_outcome = participant.outcome;
+
+        // Remove participant from smart_table
+        smart_table::remove(&mut pool.participants, user_addr);
+        
+        // Remove from participant_addresses vector
+        let (found, index) = vector::index_of(&pool.participant_addresses, &user_addr);
+        if (found) {
+            vector::remove(&mut pool.participant_addresses, index);
+        };
+        
+        // Update counters
+        pool.total_participants = pool.total_participants - 1;
+        pool.total_pool_amount = pool.total_pool_amount - withdraw_amount;
+
+        // Update outcome totals
+        let outcome_total = smart_table::borrow_mut(&mut pool.outcome_totals, participant_outcome);
+        *outcome_total = *outcome_total - withdraw_amount;
+
+        // Transfer coins back to user
+        let withdraw_coins = coin::extract(&mut pool.pool_balance, withdraw_amount);
+        coin::deposit(user_addr, withdraw_coins);
+
+        // Emit event
+        event::emit(WithdrawEvent {
+            pool_address: pool_addr,
+            participant: user_addr,
+            amount: withdraw_amount,
+            timestamp: timestamp::now_seconds(),
+        });
+    }
+
     /// Lock pool for draw (called by manager when initiating periodic draw)
     public entry fun lock_pool(
         _manager: &signer,
@@ -214,6 +278,34 @@ module safebet::pool {
     ) acquires PoolState {
         let pool = borrow_global_mut<PoolState>(pool_addr);
         coin::merge(&mut pool.pool_balance, funds);
+    }
+
+    /// Add yield to the pool (called by manager or yield generator)
+    /// This increases the total pool amount from external yield sources
+    public entry fun add_yield(
+        investor: &signer,
+        pool_addr: address,
+        amount: u64,
+    ) acquires PoolState {
+        let pool = borrow_global_mut<PoolState>(pool_addr);
+        
+        // Pool must be open to add yield
+        assert!(pool.status == STATUS_OPEN, E_POOL_LOCKED);
+        
+        // Transfer yield coins to pool
+        let yield_coins = coin::withdraw<AptosCoin>(investor, amount);
+        coin::merge(&mut pool.pool_balance, yield_coins);
+        
+        // Update total pool amount
+        pool.total_pool_amount = pool.total_pool_amount + amount;
+
+        // Emit event
+        event::emit(YieldAddedEvent {
+            pool_address: pool_addr,
+            amount,
+            new_total: pool.total_pool_amount,
+            timestamp: timestamp::now_seconds(),
+        });
     }
 
     /// Set winner (called by manager)
