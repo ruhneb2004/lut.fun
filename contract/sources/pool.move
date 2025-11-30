@@ -405,4 +405,31 @@ module safebet::pool {
         let pool = borrow_global<PoolState>(pool_addr);
         vector::contains(&pool.winner_addresses, &user_addr)
     }
+
+    #[view]
+    public fun get_all_participants(pool_addr: address): vector<address> acquires PoolState {
+        let pool = borrow_global<PoolState>(pool_addr);
+        pool.participant_addresses
+    }
+
+    #[view]
+    public fun get_outcomes(pool_addr: address): vector<String> acquires PoolState {
+        let pool = borrow_global<PoolState>(pool_addr);
+        pool.outcomes
+    }
+
+    #[view]
+    public fun get_total_tickets(pool_addr: address): u64 acquires PoolState {
+        let pool = borrow_global<PoolState>(pool_addr);
+        let total: u64 = 0;
+        let i = 0;
+        let len = vector::length(&pool.participant_addresses);
+        while (i < len) {
+            let addr = *vector::borrow(&pool.participant_addresses, i);
+            let participant = smart_table::borrow(&pool.participants, addr);
+            total = total + participant.ticket_count;
+            i = i + 1;
+        };
+        total
+    }
 }
