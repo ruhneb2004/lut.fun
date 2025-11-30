@@ -115,7 +115,7 @@ const NotConnected = () => {
         <h2 className="text-2xl font-black uppercase mb-4">Wallet Not Connected</h2>
         <p className="font-mono mb-6">Please connect your wallet to view your profile.</p>
         <button
-          onClick={() => router.push("/marketplace")}
+          onClick={() => router.push("/marketPlace")}
           className="bg-[#ff7a50] border-2 border-black px-6 py-2 font-bold uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
         >
           Go to Marketplace
@@ -288,7 +288,7 @@ const ProfilePage: React.FC = () => {
                   <h3 className="text-2xl font-black uppercase mb-2">Ready for the next big win?</h3>
                   <p className="font-mono mb-4 max-w-md">Check out the latest lotteries and try your luck!</p>
                   <button
-                    onClick={() => router.push("/marketplace")}
+                    onClick={() => router.push("/marketPlace")}
                     className="bg-[#baff73] border-2 border-black px-6 py-2 font-bold uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
                   >
                     View Market

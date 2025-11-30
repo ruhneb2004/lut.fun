@@ -5,25 +5,21 @@ import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/components/ui/use-toast";
 import { aptosClient } from "@/utils/aptosClient";
-import { Token, toOnChainAmount } from "@/utils/tokens";
 
 // Contract address for the SafeBet pool module
 const SAFEBET_ADDRESS =
   process.env.NEXT_PUBLIC_MODULE_ADDRESS || "0x37d65db16d842570eb3f6feb83a89537e05f85f1bb2016b6e5a4c7cb64ba5997";
 
-export interface DepositParams {
+export interface WithdrawParams {
   poolAddress: string;
-  amount: number;
-  outcome: string;
-  token: Token;
 }
 
-export function usePoolDeposit() {
+export function usePoolWithdraw() {
   const { account, signAndSubmitTransaction } = useWallet();
   const queryClient = useQueryClient();
   const [isLoading, setIsLoading] = useState(false);
 
-  const deposit = async ({ poolAddress, amount, outcome, token }: DepositParams) => {
+  const withdraw = async ({ poolAddress }: WithdrawParams) => {
     if (!account) {
       toast({
         variant: "destructive",
@@ -33,27 +29,15 @@ export function usePoolDeposit() {
       return null;
     }
 
-    if (amount <= 0) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Amount must be greater than 0",
-      });
-      return null;
-    }
-
     setIsLoading(true);
 
     try {
-      // Convert amount to on-chain format (with decimals)
-      const onChainAmount = toOnChainAmount(amount, token.decimals);
-
       // Build and submit the transaction
       const response = await signAndSubmitTransaction({
         data: {
-          function: `${SAFEBET_ADDRESS}::pool::deposit`,
+          function: `${SAFEBET_ADDRESS}::pool::withdraw`,
           typeArguments: [],
-          functionArguments: [poolAddress, onChainAmount.toString(), outcome],
+          functionArguments: [poolAddress],
         },
       });
 
@@ -69,27 +53,28 @@ export function usePoolDeposit() {
       queryClient.invalidateQueries({
         queryKey: ["apt-balance", account.address],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["participant-info", poolAddress, account.address],
+      });
 
       toast({
         title: "Success!",
-        description: `Successfully deposited ${amount} ${token.symbol} to the pool`,
+        description: "Successfully withdrew your deposit from the pool",
       });
 
       return executedTransaction;
     } catch (error: any) {
-      console.error("Deposit error:", error);
+      console.error("Withdraw error:", error);
 
-      let errorMessage = "Failed to deposit. Please try again.";
+      let errorMessage = "Failed to withdraw. Please try again.";
 
       // Parse common error messages
-      if (error?.message?.includes("E_BETTING_CLOSED")) {
-        errorMessage = "Betting is closed for this pool";
-      } else if (error?.message?.includes("E_INVALID_AMOUNT") || error?.message?.includes("0x3")) {
-        errorMessage = "Invalid amount. Amount must be between min and max entry for this pool (in octas).";
-      } else if (error?.message?.includes("E_ALREADY_DEPOSITED")) {
-        errorMessage = "You have already deposited to this pool";
+      if (error?.message?.includes("E_POOL_LOCKED") || error?.message?.includes("0x4")) {
+        errorMessage = "Pool is locked. Cannot withdraw after draw has started.";
+      } else if (error?.message?.includes("E_NOT_PARTICIPANT") || error?.message?.includes("0x6")) {
+        errorMessage = "You are not a participant in this pool";
       } else if (error?.message?.includes("INSUFFICIENT_BALANCE")) {
-        errorMessage = "Insufficient balance";
+        errorMessage = "Insufficient pool balance";
       }
 
       toast({
@@ -105,7 +90,7 @@ export function usePoolDeposit() {
   };
 
   return {
-    deposit,
+    withdraw,
     isLoading,
     isConnected: !!account,
   };

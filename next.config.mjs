@@ -9,9 +9,14 @@ export default withPWA({
   images: {
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: 'i.seadn.io',
-        pathname: '/**',
+        protocol: "https",
+        hostname: "i.seadn.io",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "picsum.photos",
+        pathname: "/**",
       },
     ],
   },

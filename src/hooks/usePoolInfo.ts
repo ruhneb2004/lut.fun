@@ -3,8 +3,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { aptosClient } from "@/utils/aptosClient";
 
-// Contract address for the SafeBet pool module
-const SAFEBET_ADDRESS = "0x45fffbc5d0efd8cacfdbc61af7f64b5198b4ac7b1f7f68c10f1e6b0fc4bdd193";
+// Contract address for the SafeBet pool moduleNEXT_PUBLIC_MODULE_ADDRESS
+const SAFEBET_ADDRESS =
+  process.env.NEXT_PUBLIC_MODULE_ADDRESS || "0x37d65db16d842570eb3f6feb83a89537e05f85f1bb2016b6e5a4c7cb64ba5997";
 
 export interface PoolInfo {
   name: string;

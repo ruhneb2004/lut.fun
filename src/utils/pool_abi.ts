@@ -2,7 +2,7 @@
 // This is the ABI for the safebet::pool module
 
 export const POOL_ABI = {
-  address: "0x45fffbc5d0efd8cacfdbc61af7f64b5198b4ac7b1f7f68c10f1e6b0fc4bdd193",
+  address: "0x37d65db16d842570eb3f6feb83a89537e05f85f1bb2016b6e5a4c7cb64ba5997",
   name: "pool",
   friends: [],
   exposed_functions: [
@@ -13,6 +13,24 @@ export const POOL_ABI = {
       is_view: false,
       generic_type_params: [],
       params: ["&signer", "address", "u64", "0x1::string::String"],
+      return: [],
+    },
+    {
+      name: "lock_pool",
+      visibility: "public",
+      is_entry: true,
+      is_view: false,
+      generic_type_params: [],
+      params: ["&signer", "address"],
+      return: [],
+    },
+    {
+      name: "set_winner",
+      visibility: "public",
+      is_entry: true,
+      is_view: false,
+      generic_type_params: [],
+      params: ["&signer", "address", "0x1::string::String"],
       return: [],
     },
     {
@@ -75,7 +93,7 @@ export const POOL_ABI = {
 
 // Pool Factory ABI
 export const POOL_FACTORY_ABI = {
-  address: "0x45fffbc5d0efd8cacfdbc61af7f64b5198b4ac7b1f7f68c10f1e6b0fc4bdd193",
+  address: "0x37d65db16d842570eb3f6feb83a89537e05f85f1bb2016b6e5a4c7cb64ba5997",
   name: "pool_factory",
   friends: [],
   exposed_functions: [
@@ -85,7 +103,8 @@ export const POOL_FACTORY_ABI = {
       is_entry: true,
       is_view: false,
       generic_type_params: [],
-      params: ["&signer", "address", "0x1::string::String", "vector<0x1::string::String>", "u64", "u64", "u64", "u64"],
+      // Updated params: Removed the last two u64 (durations)
+      params: ["&signer", "address", "0x1::string::String", "vector<0x1::string::String>", "u64", "u64"],
       return: [],
     },
     {

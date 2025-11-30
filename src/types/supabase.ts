@@ -1,10 +1,4 @@
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[]
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export type Database = {
   public: {
@@ -75,6 +69,7 @@ export type Database = {
           pool: number;
           total: number;
           created_at: string | null;
+          pool_address: string | null;
         };
         Insert: {
           id?: string;
@@ -84,6 +79,7 @@ export type Database = {
           pool: number;
           total?: number;
           created_at?: string | null;
+          pool_address?: string | null;
         };
         Update: {
           id?: string;
@@ -93,6 +89,7 @@ export type Database = {
           pool?: number;
           total?: number;
           created_at?: string | null;
+          pool_address?: string | null;
         };
         Relationships: [];
       };
@@ -124,7 +121,7 @@ export type Database = {
             columns: ["pool_id"];
             referencedRelation: "pool_create";
             referencedColumns: ["id"];
-          }
+          },
         ];
       };
       top_holders: {
@@ -155,7 +152,7 @@ export type Database = {
             columns: ["pool_id"];
             referencedRelation: "pool_create";
             referencedColumns: ["id"];
-          }
+          },
         ];
       };
     };

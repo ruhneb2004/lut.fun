@@ -1,18 +1,79 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import ItemCard from "@/components/ItemComp"; // Ensure this path matches your project
-import { MARKET_DATA } from "../lib/data";
 import CreateLotteryModal from "@/components/CreateLotteryModal";
 import { truncateAddress, useWallet } from "@aptos-labs/wallet-adapter-react";
+import { getAllPools } from "@/lib/database";
+import type { PoolCreate } from "@/types/supabase";
+
+// MarketItem type for display
+type MarketItem = {
+  id: string;
+  name: string;
+  subname: string;
+  price: string;
+  change: string;
+  isPositive: boolean;
+  contract: string;
+  holders: string;
+  image: string;
+};
+
+// Default images for dynamically created pools (using picsum for reliable placeholders)
+const DEFAULT_POOL_IMAGES = [
+  "https://picsum.photos/seed/pool1/400/400",
+  "https://picsum.photos/seed/pool2/400/400",
+  "https://picsum.photos/seed/pool3/400/400",
+  "https://picsum.photos/seed/pool4/400/400",
+  "https://picsum.photos/seed/pool5/400/400",
+  "https://picsum.photos/seed/pool6/400/400",
+  "https://picsum.photos/seed/pool7/400/400",
+  "https://picsum.photos/seed/pool8/400/400",
+];
+
+// Convert database pool to MarketItem format
+const poolToMarketItem = (pool: PoolCreate, index: number): MarketItem => {
+  return {
+    id: `pool-${pool.id}`,
+    name: pool.name,
+    subname: `Pool #${pool.id.slice(0, 6)}`,
+    price: `$${pool.pool.toLocaleString()}`,
+    change: "+0%",
+    isPositive: true,
+    contract: `0x${pool.id.slice(0, 3)}...${pool.id.slice(-4)}`,
+    holders: "0.00%",
+    image: DEFAULT_POOL_IMAGES[index % DEFAULT_POOL_IMAGES.length],
+  };
+};
 
 const Marketplace = () => {
   const { account } = useWallet();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [dbPools, setDbPools] = useState<MarketItem[]>([]);
+  const [isLoadingPools, setIsLoadingPools] = useState(true);
 
-  // Filter market data based on search query
-  const filteredData = MARKET_DATA.filter((item) => {
+  // Fetch pools from database
+  useEffect(() => {
+    const fetchPools = async () => {
+      setIsLoadingPools(true);
+      try {
+        const pools = await getAllPools();
+        const convertedPools = pools.map((pool, index) => poolToMarketItem(pool, index));
+        setDbPools(convertedPools);
+      } catch (error) {
+        console.error("[Marketplace] Error fetching pools:", error);
+      } finally {
+        setIsLoadingPools(false);
+      }
+    };
+
+    fetchPools();
+  }, []);
+
+  // Filter pools based on search query
+  const filteredData = dbPools.filter((item) => {
     const query = searchQuery.toLowerCase();
     return (
       item.name.toLowerCase().includes(query) ||
@@ -21,9 +82,24 @@ const Marketplace = () => {
     );
   });
 
+  // Callback to refresh pools after creating a new one
+  const handlePoolCreated = async () => {
+    try {
+      const pools = await getAllPools();
+      const convertedPools = pools.map((pool, index) => poolToMarketItem(pool, index));
+      setDbPools(convertedPools);
+    } catch (error) {
+      console.error("[Marketplace] Error refreshing pools:", error);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white text-black font-sans flex flex-col items-center">
-      <CreateLotteryModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      <CreateLotteryModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onPoolCreated={handlePoolCreated}
+      />
 
       <div className="w-full max-w-7xl border-x-2 border-black min-h-screen flex flex-col bg-white">
         {/* --- HEADER --- */}
@@ -99,7 +175,11 @@ const Marketplace = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-12">
-              {filteredData.length > 0 ? (
+              {isLoadingPools ? (
+                <div className="col-span-full text-center py-12">
+                  <p className="text-2xl font-black uppercase text-gray-400">Loading pools...</p>
+                </div>
+              ) : filteredData.length > 0 ? (
                 filteredData.map((item) => (
                   <Link key={item.id} href={`/marketPlace/${item.id}`}>
                     <ItemCard name={item.name} subname={item.subname} image={item.image} />

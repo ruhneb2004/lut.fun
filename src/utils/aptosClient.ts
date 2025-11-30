@@ -1,8 +1,11 @@
-import { APTOS_API_KEY, NETWORK } from "@/constants";
+import { NETWORK } from "@/constants";
 import { Aptos, AptosConfig } from "@aptos-labs/ts-sdk";
 
 const aptos = new Aptos(
-  new AptosConfig({ network: NETWORK, clientConfig: { API_KEY: "AG-8XPK43DZIN11RM423Z2GDVYKRKN6DRJB1" } }),
+  new AptosConfig({
+    network: NETWORK,
+    clientConfig: { API_KEY: "AG-LA1Q5TNVBDBFBDJNTUOR2BTA8Y12KWI7Q" },
+  }),
 );
 
 // Reuse same Aptos instance to utilize cookie based sticky routing

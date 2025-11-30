@@ -3,6 +3,8 @@
 import React, { useState } from "react";
 import { createPool } from "@/lib/database";
 import { useToast } from "@/components/ui/use-toast";
+import { useCreatePool } from "@/hooks/useCreatePool";
+import { useWallet } from "@aptos-labs/wallet-adapter-react";
 
 interface CreateLotteryModalProps {
   isOpen: boolean;
@@ -12,6 +14,8 @@ interface CreateLotteryModalProps {
 
 const CreateLotteryModal: React.FC<CreateLotteryModalProps> = ({ isOpen, onClose, onPoolCreated }) => {
   const { toast } = useToast();
+  const { account } = useWallet();
+  const { createPool: createPoolOnChain, isLoading: isCreatingOnChain } = useCreatePool();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -22,10 +26,20 @@ const CreateLotteryModal: React.FC<CreateLotteryModalProps> = ({ isOpen, onClose
   });
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleCreate = async () => {
+    // Check wallet connection first
+    if (!account) {
+      toast({
+        title: "Wallet Required",
+        description: "Please connect your wallet to create a pool",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Validate form
     if (!formData.name.trim()) {
       toast({
@@ -79,20 +93,37 @@ const CreateLotteryModal: React.FC<CreateLotteryModalProps> = ({ isOpen, onClose
     setIsLoading(true);
 
     try {
+      // Step 1: Create pool on-chain first
+      const onChainResult = await createPoolOnChain({
+        name: formData.name.trim(),
+        outcomes: ["YES", "NO"], // Default outcomes for lottery
+        minEntry: minEntry,
+        maxEntry: maxEntry,
+      });
+
+      // Only proceed to database if on-chain creation was successful
+      if (!onChainResult || !onChainResult.success) {
+        // Toast is already shown by the hook
+        setIsLoading(false);
+        return;
+      }
+
+      // Step 2: Create pool in database after successful on-chain creation
       const pool = await createPool({
         name: formData.name.trim(),
         min: minEntry,
         max: maxEntry,
         pool: poolAmount,
         total: 0, // Initial total is 0
+        pool_address: onChainResult.poolAddress || null, // Save the on-chain pool address
       });
 
       if (pool) {
         toast({
-          title: "Success!",
-          description: `Pool "${pool.name}" created successfully`,
+          title: "Pool Created!",
+          description: `Pool "${pool.name}" created successfully on-chain and saved to database`,
         });
-        
+
         // Reset form
         setFormData({
           name: "",
@@ -101,16 +132,17 @@ const CreateLotteryModal: React.FC<CreateLotteryModalProps> = ({ isOpen, onClose
           poolToken: "",
           poolAmount: "",
         });
-        
+
         // Callback for parent component
         onPoolCreated?.();
-        
+
         // Close modal
         onClose();
       } else {
+        // On-chain succeeded but database failed
         toast({
-          title: "Error",
-          description: "Failed to create pool. Please check console for details.",
+          title: "Partial Success",
+          description: "Pool created on-chain but failed to save to database. Transaction hash: " + onChainResult.hash,
           variant: "destructive",
         });
       }
@@ -194,16 +226,16 @@ const CreateLotteryModal: React.FC<CreateLotteryModalProps> = ({ isOpen, onClose
             <label className="text-xl font-bold font-mono min-w-[200px] text-black">Pool</label>
             <div className="flex flex-1 gap-4">
               <div className="relative w-full">
-                <select 
+                <select
                   className="w-full appearance-none bg-white border-2 border-black p-3 pr-8 font-mono focus:outline-none cursor-pointer"
                   value={formData.poolToken}
                   onChange={(e) => handleInputChange("poolToken", e.target.value)}
                   disabled={isLoading}
                 >
                   <option value="" disabled></option>
-                  <option value="usdc">USDC</option>
-                  <option value="eth">ETH</option>
-                  <option value="sol">SOL</option>
+                  <option value="usdc">APT</option>
+                  <option value="eth">USDC</option>
+                  <option value="sol">USDT</option>
                 </select>
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
                   <svg
@@ -222,7 +254,7 @@ const CreateLotteryModal: React.FC<CreateLotteryModalProps> = ({ isOpen, onClose
               </div>
 
               <div className="relative w-full">
-                <select 
+                <select
                   className="w-full appearance-none bg-white border-2 border-black p-3 pr-8 font-mono focus:outline-none cursor-pointer"
                   value={formData.poolAmount}
                   onChange={(e) => handleInputChange("poolAmount", e.target.value)}
@@ -253,13 +285,19 @@ const CreateLotteryModal: React.FC<CreateLotteryModalProps> = ({ isOpen, onClose
 
           {/* Create Button */}
           <div className="flex justify-center mt-8">
-            <button 
+            <button
               onClick={handleCreate}
-              disabled={isLoading}
-              className={`bg-[#baff73] border-2 border-black px-16 py-3 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+              disabled={isLoading || isCreatingOnChain || !account}
+              className={`bg-[#baff73] border-2 border-black px-16 py-3 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all ${isLoading || isCreatingOnChain || !account ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               <span className="text-xl font-black uppercase tracking-widest text-black">
-                {isLoading ? 'CREATING...' : 'CREATE'}
+                {!account
+                  ? "CONNECT WALLET"
+                  : isCreatingOnChain
+                    ? "CREATING ON-CHAIN..."
+                    : isLoading
+                      ? "SAVING..."
+                      : "CREATE"}
               </span>
             </button>
           </div>
