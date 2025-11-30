@@ -10,9 +10,9 @@ import { UserInitializer } from "@/components/UserInitializer";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  applicationName: "Aptos Boilerplate Template",
-  title: "NextJS Boilerplate Template",
-  description: "Aptos Boilerplate Template",
+  applicationName: "lut.fun",
+  title: "lut",
+  description: "no loss lot on aptos with yield aggregator",
   manifest: "/manifest.json",
 };
 

@@ -54,7 +54,7 @@ const LandingPage = () => {
             <h1 className="text-6xl md:text-8xl font-black uppercase tracking-tighter mb-4">TOTAL POOL</h1>
             <div className="flex items-center justify-center gap-4 w-full">
               <div className="h-[2px] bg-gray-600 flex-1"></div>
-              <span className="text-4xl md:text-6xl font-black text-gray-600 tracking-tight">$25,000</span>
+              <span className="text-4xl md:text-6xl font-black text-gray-600 tracking-tight">$18</span>
               <div className="h-[2px] bg-gray-600 flex-1"></div>
             </div>
           </div>
