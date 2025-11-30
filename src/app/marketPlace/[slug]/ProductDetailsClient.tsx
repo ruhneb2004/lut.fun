@@ -502,15 +502,27 @@ export default function ProductDetailsClient({ params }: { params: { slug: strin
                     </span>
                   </div>
                   <div className="flex justify-between mt-1 text-xs text-gray-500">
-                    <span>
-                      Balance: {userBalance.toFixed(4)} {selectedToken.symbol}
-                    </span>
-                    <button
-                      onClick={() => setAmount(userBalance.toString())}
-                      className="text-blue-600 hover:underline font-bold"
-                    >
-                      MAX
-                    </button>
+                    {activeTab === "buy" ? (
+                      <>
+                        <span>
+                          Balance: {userBalance.toFixed(4)} {selectedToken.symbol}
+                        </span>
+                        <button
+                          onClick={() => setAmount(userBalance.toString())}
+                          className="text-blue-600 hover:underline font-bold"
+                        >
+                          MAX
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span>
+                          Tickets: {participantInfo?.ticketCount || 0} (
+                          {participantInfo ? fromOnChainAmount(participantInfo.amount, 8).toFixed(4) : "0"} APT)
+                        </span>
+                        {participantInfo && <span className="text-green-600 font-bold">Sell All</span>}
+                      </>
+                    )}
                   </div>
                 </div>
 
