@@ -9,6 +9,21 @@ import type { PoolCreate } from "@/types/supabase";
 import { usePickWinner } from "@/hooks/usePickWinner";
 import { toast } from "@/components/ui/use-toast";
 
+// 7.7% yield rate for prize calculation
+const YIELD_RATE = 0.077;
+
+// Calculate 7.7% yield prize from pool amount (returns APT value)
+const calculateYieldPrize = (poolValue: string): { amount: number; display: string } => {
+  // Extract numeric value from price string like "$1,000" or just number
+  const numericValue = parseFloat(poolValue.replace(/[$,]/g, "")) || 0;
+  // 7.7% of the total pool
+  const yieldAmount = numericValue * YIELD_RATE;
+  return {
+    amount: yieldAmount,
+    display: `${yieldAmount.toFixed(4)} APT`,
+  };
+};
+
 // MarketItem type for display
 type MarketItem = {
   id: string;
@@ -55,12 +70,12 @@ const poolToMarketItem = (pool: PoolCreate, index: number): MarketItem => {
     id: `pool-${pool.id}`,
     name: pool.name,
     subname: `Pool #${pool.id.slice(0, 6)}`,
-    price: `$${pool.pool.toLocaleString()}`,
+    price: `${pool.pool.toLocaleString()}`,
     change: "+0%",
     isPositive: true,
     contract: `0x${pool.id.slice(0, 3)}...${pool.id.slice(-4)}`,
     holders: "0.00%",
-    image: DEFAULT_POOL_IMAGES[index % DEFAULT_POOL_IMAGES.length],
+    image: pool.image_url || DEFAULT_POOL_IMAGES[index % DEFAULT_POOL_IMAGES.length],
     createdAt: pool.created_at,
     poolAddress: pool.pool_address,
     isExpired: expired,
@@ -79,6 +94,9 @@ const Marketplace = () => {
 
   // Demo/Real mode toggle
   const [isDemoMode, setIsDemoMode] = useState(true);
+
+  // Pick Winner Modal state
+  const [isPickWinnerModalOpen, setIsPickWinnerModalOpen] = useState(false);
 
   // Pick winner animation state
   const [pickingPhase, setPickingPhase] = useState<"idle" | "shuffling" | "revealing" | "done">("idle");
@@ -147,9 +165,12 @@ const Marketplace = () => {
           const winnerAddress = demoParticipants[winnerIndex];
           const fakeTxHash = `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join("")}`;
 
+          // Calculate yield-based prize instead of full pool
+          const yieldPrize = calculateYieldPrize(demoPool.price);
+
           setWinner({
             address: winnerAddress,
-            prize: demoPool.price,
+            prize: yieldPrize.display,
             txHash: fakeTxHash,
           });
           setTxHash(fakeTxHash);
@@ -182,9 +203,12 @@ const Marketplace = () => {
 
             if (result.success) {
               const winnerAddress = account?.address?.toString() || demoParticipants[0];
+              // Calculate yield-based prize instead of full pool
+              const yieldPrize = calculateYieldPrize(demoPool.price);
+
               setWinner({
                 address: winnerAddress,
-                prize: demoPool.price,
+                prize: yieldPrize.display,
                 txHash: result.hash || "",
               });
               setTxHash(result.hash || null);
@@ -375,261 +399,274 @@ const Marketplace = () => {
             </button>
           </div>
 
-          {/* PICK WINNER SECTION */}
-          <div className="flex flex-col gap-6 bg-gradient-to-r from-yellow-100 to-orange-100 border-2 border-black p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
-            <div className="flex items-center gap-4 flex-wrap">
-              <div className="bg-[#ff6b6b] border-2 border-black px-6 py-2">
-                <h2 className="text-xl font-black uppercase tracking-widest flex items-center gap-2">
-                  🎰 PICK WINNERS
-                </h2>
-              </div>
-              <span className="bg-black text-white px-3 py-1 text-sm font-bold">
-                {(demoPool && pickingPhase !== "done" ? 1 : 0) + expiredPools.filter((p) => p.id !== demoPool?.id).length}{" "}
-                Ready
-              </span>
-              <span className={`${isDemoMode ? "bg-purple-500" : "bg-green-500"} text-white px-3 py-1 text-sm font-bold`}>
-                {isDemoMode ? "🎭 DEMO" : "⛓️ ON-CHAIN"}
-              </span>
-              <span className="bg-red-500 text-white px-3 py-1 text-sm font-bold animate-pulse">LIVE DRAW</span>
-
-              {/* Demo Mode Toggle */}
-              <div className="flex items-center gap-2 ml-auto">
-                <span className={`text-sm font-bold ${!isDemoMode ? "text-green-600" : "text-gray-400"}`}>Real</span>
-                <button
-                  onClick={() => setIsDemoMode(!isDemoMode)}
-                  className={`relative w-14 h-7 rounded-full border-2 border-black transition-colors ${
-                    isDemoMode ? "bg-purple-500" : "bg-green-500"
-                  }`}
-                >
-                  <div
-                    className={`absolute top-0.5 w-5 h-5 bg-white border-2 border-black rounded-full transition-transform ${
-                      isDemoMode ? "translate-x-7" : "translate-x-0.5"
-                    }`}
-                  />
-                </button>
-                <span className={`text-sm font-bold ${isDemoMode ? "text-purple-600" : "text-gray-400"}`}>Demo</span>
-              </div>
-            </div>
-
-            <p className="font-mono text-gray-700">
-              {isDemoMode ? (
-                <span className="text-purple-600">
-                  <strong>🎭 Demo Mode:</strong> Simulates the lottery flow without blockchain transactions. Perfect for
-                  showcasing!
-                </span>
-              ) : (
-                <span className="text-green-600">
-                  <strong>⛓️ Real Mode:</strong> Actual blockchain transactions. Winners are picked on-chain!
-                </span>
-              )}
-            </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {/* LOTTERY CARD */}
-              {demoPool && pickingPhase !== "done" && (
-                <div
-                  className={`bg-white border-2 border-black p-4 flex flex-col gap-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] relative overflow-hidden
-                  ${pickingPhase === "shuffling" ? "animate-pulse" : ""}`}
-                >
-                  {/* Animated background during shuffle */}
-                  {pickingPhase === "shuffling" && (
-                    <div className="absolute inset-0 bg-gradient-to-r from-yellow-200 via-orange-200 to-yellow-200 opacity-50" />
-                  )}
-
-                  <div className="relative z-10">
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={demoPool.image}
-                        alt={demoPool.name}
-                        className={`w-12 h-12 border-2 border-black object-cover ${pickingPhase === "shuffling" ? "animate-bounce" : ""}`}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-black text-lg truncate">{demoPool.name}</h3>
-                        <p className="font-mono text-sm text-gray-600 truncate">
-                          {demoPool.poolAddress?.slice(0, 8)}...{demoPool.poolAddress?.slice(-6)}
-                        </p>
-                      </div>
-                      <span
-                        className={`${isDemoMode ? "bg-purple-500" : "bg-green-500"} text-white text-xs px-2 py-1 font-bold`}
-                      >
-                        {isDemoMode ? "DEMO" : "ON-CHAIN"}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between text-sm font-mono mt-3">
-                      <span className="text-gray-600">Prize Pool:</span>
-                      <span className="font-bold text-xl text-green-600">{demoPool.price}</span>
-                    </div>
-
-                    {/* Shuffle display */}
-                    {(pickingPhase === "shuffling" || pickingPhase === "revealing") && (
-                      <div className="mt-3 p-3 bg-black text-green-400 font-mono text-center rounded border-2 border-green-500">
-                        <p className="text-xs text-gray-400 mb-1">
-                          {pickingPhase === "shuffling"
-                            ? isDemoMode
-                              ? "🎭 SIMULATING..."
-                              : "🔗 SENDING TO BLOCKCHAIN..."
-                            : "🎲 SELECTING WINNER..."}
-                        </p>
-                        <p className={`text-sm truncate ${pickingPhase === "revealing" ? "text-yellow-400 text-lg" : ""}`}>
-                          {shuffleAddress.slice(0, 10)}...{shuffleAddress.slice(-8)}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Pick Winner Button */}
-                    <button
-                      onClick={handlePickWinnerMain}
-                      disabled={pickingPhase !== "idle" || isPicking}
-                      className={`w-full mt-3 ${isDemoMode ? "bg-purple-500 hover:bg-purple-600" : "bg-[#ff7a50] hover:bg-[#ff9470]"} border-2 border-black py-3 px-4 font-black uppercase tracking-wider
-                        active:translate-y-[2px] active:shadow-none text-white
-                        shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all
-                        disabled:opacity-50 disabled:cursor-not-allowed`}
-                    >
-                      {pickingPhase === "idle" ? (
-                        `🎲 Pick Winner ${isDemoMode ? "(Demo)" : "(On-Chain)"}`
-                      ) : (
-                        <span className="flex items-center justify-center gap-2">
-                          <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                            <circle
-                              className="opacity-25"
-                              cx="12"
-                              cy="12"
-                              r="10"
-                              stroke="currentColor"
-                              strokeWidth="4"
-                              fill="none"
-                            />
-                            <path
-                              className="opacity-75"
-                              fill="currentColor"
-                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                            />
-                          </svg>
-                          {pickingPhase === "shuffling" ? "Processing..." : "Revealing..."}
-                        </span>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* No pool available message */}
-              {!demoPool && pickingPhase !== "done" && (
-                <div className="bg-white border-2 border-dashed border-gray-400 p-4 flex flex-col gap-3 items-center justify-center text-center">
-                  <p className="text-gray-500 font-mono">No pools with on-chain address available</p>
-                  <p className="text-sm text-gray-400">Create a pool first to enable live demo</p>
-                </div>
-              )}
-
-              {/* Winner Reveal Card */}
-              {pickingPhase === "done" && winner && demoPool && (
-                <div className="col-span-full md:col-span-2 lg:col-span-3 bg-gradient-to-r from-green-400 via-emerald-500 to-green-400 border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
-                  <div className="bg-white border-2 border-black p-6 text-center">
-                    <div className="text-6xl mb-4">🎉🏆🎉</div>
-                    <h3 className="text-3xl font-black uppercase mb-2">WINNER SELECTED!</h3>
-                    <p className="font-mono text-gray-600 mb-4">{demoPool.name}</p>
-
-                    <div className="bg-black text-white p-4 rounded-lg mb-4">
-                      <p className="text-sm text-gray-400 mb-1">Winner Address</p>
-                      <p className="font-mono text-lg text-green-400 break-all">{winner.address}</p>
-                    </div>
-
-                    <div className="flex items-center justify-center gap-4 mb-4">
-                      <div className="text-center">
-                        <p className="text-sm text-gray-600">Prize Won</p>
-                        <p className="text-4xl font-black text-green-600">{winner.prize}</p>
-                      </div>
-                    </div>
-
-                    {txHash && (
-                      <div className="bg-gray-100 border border-gray-300 p-3 rounded-lg mb-4">
-                        <p className="text-xs text-gray-500 mb-1">Transaction Hash {isDemoMode && "(Simulated)"}</p>
-                        <p className="font-mono text-sm text-gray-700 break-all">{txHash}</p>
-                      </div>
-                    )}
-
-                    <div className="flex gap-4 justify-center flex-wrap">
-                      <button
-                        onClick={handleReset}
-                        className="bg-[#4fe869] border-2 border-black py-2 px-6 font-black uppercase
-                          hover:bg-[#3dd858] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all"
-                      >
-                        🔄 Pick Another
-                      </button>
-                      {txHash && !isDemoMode && (
-                        <a
-                          href={`https://explorer.aptoslabs.com/txn/${txHash}?network=testnet`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="bg-[#baff73] border-2 border-black py-2 px-6 font-black uppercase
-                            hover:bg-[#a3e660] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all inline-block"
-                        >
-                          View on Explorer →
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Real expired pools */}
-              {expiredPools.map((pool) => (
-                <div
-                  key={pool.id}
-                  className="bg-white border-2 border-black p-4 flex flex-col gap-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
-                >
+          {/* PICK WINNER MODAL */}
+          {isPickWinnerModalOpen && (
+            <div
+              className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+              onClick={() => setIsPickWinnerModalOpen(false)}
+            >
+              <div
+                className="bg-white border-4 border-black max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Modal Header */}
+                <div className="bg-gradient-to-r from-yellow-100 to-orange-100 border-b-2 border-black p-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <img src={pool.image} alt={pool.name} className="w-12 h-12 border-2 border-black object-cover" />
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-black text-lg truncate">{pool.name}</h3>
-                      <p className="font-mono text-sm text-gray-600 truncate">
-                        {pool.poolAddress?.slice(0, 8)}...{pool.poolAddress?.slice(-6)}
-                      </p>
+                    <div className="bg-[#ff6b6b] border-2 border-black px-4 py-1">
+                      <h2 className="text-lg font-black uppercase tracking-widest flex items-center gap-2">
+                        🎰 PICK WINNER
+                      </h2>
                     </div>
+                    <span
+                      className={`${isDemoMode ? "bg-purple-500" : "bg-green-500"} text-white px-2 py-1 text-xs font-bold`}
+                    >
+                      {isDemoMode ? "🎭 DEMO" : "⛓️ ON-CHAIN"}
+                    </span>
                   </div>
-
-                  <div className="flex items-center justify-between text-sm font-mono">
-                    <span className="text-gray-600">Pool Value:</span>
-                    <span className="font-bold">{pool.price}</span>
-                  </div>
-
                   <button
-                    onClick={() => handlePickWinner(pool)}
-                    disabled={isPicking && pickingWinnerFor === pool.id}
-                    className="w-full bg-[#ff7a50] border-2 border-black py-2 px-4 font-black uppercase tracking-wider
-                      hover:bg-[#ff9470] active:translate-y-[2px] active:shadow-none 
-                      shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all
-                      disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#ff7a50]"
+                    onClick={() => setIsPickWinnerModalOpen(false)}
+                    className="bg-black text-white w-8 h-8 flex items-center justify-center font-bold hover:bg-gray-800 transition-colors"
                   >
-                    {isPicking && pickingWinnerFor === pool.id ? (
-                      <span className="flex items-center justify-center gap-2">
-                        <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                            fill="none"
-                          />
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                          />
-                        </svg>
-                        Picking...
-                      </span>
-                    ) : (
-                      "🎲 Pick Winner"
-                    )}
+                    ✕
                   </button>
                 </div>
-              ))}
+
+                {/* Modal Content */}
+                <div className="p-6 flex flex-col gap-6">
+                  {/* Demo Mode Toggle */}
+                  <div className="flex items-center justify-between bg-gray-50 border-2 border-black p-3">
+                    <p className="font-mono text-sm text-gray-700">
+                      {isDemoMode ? (
+                        <span className="text-purple-600">
+                          <strong>🎭 Demo:</strong> Simulates without blockchain
+                        </span>
+                      ) : (
+                        <span className="text-green-600">
+                          <strong>⛓️ Real:</strong> Actual blockchain transactions
+                        </span>
+                      )}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-bold ${!isDemoMode ? "text-green-600" : "text-gray-400"}`}>
+                        Real
+                      </span>
+                      <button
+                        onClick={() => setIsDemoMode(!isDemoMode)}
+                        className={`relative w-12 h-6 rounded-full border-2 border-black transition-colors ${
+                          isDemoMode ? "bg-purple-500" : "bg-green-500"
+                        }`}
+                      >
+                        <div
+                          className={`absolute top-0.5 w-4 h-4 bg-white border-2 border-black rounded-full transition-transform ${
+                            isDemoMode ? "translate-x-6" : "translate-x-0.5"
+                          }`}
+                        />
+                      </button>
+                      <span className={`text-xs font-bold ${isDemoMode ? "text-purple-600" : "text-gray-400"}`}>
+                        Demo
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Lottery Card */}
+                  {demoPool && pickingPhase !== "done" && (
+                    <div
+                      className={`bg-white border-2 border-black p-4 flex flex-col gap-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] relative overflow-hidden
+                      ${pickingPhase === "shuffling" ? "animate-pulse" : ""}`}
+                    >
+                      {pickingPhase === "shuffling" && (
+                        <div className="absolute inset-0 bg-gradient-to-r from-yellow-200 via-orange-200 to-yellow-200 opacity-50" />
+                      )}
+
+                      <div className="relative z-10">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={demoPool.image}
+                            alt={demoPool.name}
+                            className={`w-14 h-14 border-2 border-black object-cover ${pickingPhase === "shuffling" ? "animate-bounce" : ""}`}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-black text-xl truncate">{demoPool.name}</h3>
+                            <p className="font-mono text-sm text-gray-600 truncate">
+                              {demoPool.poolAddress?.slice(0, 10)}...{demoPool.poolAddress?.slice(-8)}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 mt-4">
+                          <div className="bg-gray-50 border border-gray-200 p-3 text-center">
+                            <p className="text-xs text-gray-500 uppercase">Total Pool</p>
+                            <p className="font-bold text-lg">{demoPool.price} APT</p>
+                          </div>
+                          <div className="bg-green-50 border border-green-200 p-3 text-center">
+                            <p className="text-xs text-green-600 uppercase">Winner Prize (7.7%)</p>
+                            <p className="font-bold text-lg text-green-600">
+                              {calculateYieldPrize(demoPool.price).display}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Shuffle display */}
+                        {(pickingPhase === "shuffling" || pickingPhase === "revealing") && (
+                          <div className="mt-4 p-4 bg-black text-green-400 font-mono text-center rounded border-2 border-green-500">
+                            <p className="text-xs text-gray-400 mb-2">
+                              {pickingPhase === "shuffling"
+                                ? isDemoMode
+                                  ? "🎭 SIMULATING..."
+                                  : "🔗 SENDING TO BLOCKCHAIN..."
+                                : "🎲 SELECTING WINNER..."}
+                            </p>
+                            <p
+                              className={`text-lg truncate ${pickingPhase === "revealing" ? "text-yellow-400 text-xl" : ""}`}
+                            >
+                              {shuffleAddress.slice(0, 12)}...{shuffleAddress.slice(-10)}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Pick Winner Button */}
+                        <button
+                          onClick={handlePickWinnerMain}
+                          disabled={pickingPhase !== "idle" || isPicking}
+                          className={`w-full mt-4 ${isDemoMode ? "bg-purple-500 hover:bg-purple-600" : "bg-[#ff7a50] hover:bg-[#ff9470]"} border-2 border-black py-4 px-4 font-black uppercase tracking-wider text-lg
+                            active:translate-y-[2px] active:shadow-none text-white
+                            shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all
+                            disabled:opacity-50 disabled:cursor-not-allowed`}
+                        >
+                          {pickingPhase === "idle" ? (
+                            `🎲 Pick Winner ${isDemoMode ? "(Demo)" : "(On-Chain)"}`
+                          ) : (
+                            <span className="flex items-center justify-center gap-2">
+                              <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                                <circle
+                                  className="opacity-25"
+                                  cx="12"
+                                  cy="12"
+                                  r="10"
+                                  stroke="currentColor"
+                                  strokeWidth="4"
+                                  fill="none"
+                                />
+                                <path
+                                  className="opacity-75"
+                                  fill="currentColor"
+                                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                />
+                              </svg>
+                              {pickingPhase === "shuffling" ? "Processing..." : "Revealing..."}
+                            </span>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* No pool available */}
+                  {!demoPool && pickingPhase !== "done" && (
+                    <div className="bg-gray-50 border-2 border-dashed border-gray-400 p-8 flex flex-col gap-3 items-center justify-center text-center">
+                      <p className="text-gray-500 font-mono">No pools available</p>
+                      <p className="text-sm text-gray-400">Create a pool first to enable the lottery</p>
+                      <button
+                        onClick={() => {
+                          setIsPickWinnerModalOpen(false);
+                          setIsModalOpen(true);
+                        }}
+                        className="mt-2 bg-[#4fe869] border-2 border-black py-2 px-4 font-bold uppercase
+                          shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
+                      >
+                        Create Pool →
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Winner Reveal */}
+                  {pickingPhase === "done" && winner && demoPool && (
+                    <div className="bg-gradient-to-r from-green-400 via-emerald-500 to-green-400 border-4 border-black p-4 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+                      <div className="bg-white border-2 border-black p-6 text-center">
+                        <div className="text-5xl mb-3">🎉🏆🎉</div>
+                        <h3 className="text-2xl font-black uppercase mb-1">WINNER SELECTED!</h3>
+                        <p className="font-mono text-gray-600 mb-4">{demoPool.name}</p>
+
+                        <div className="bg-black text-white p-3 rounded-lg mb-3">
+                          <p className="text-xs text-gray-400 mb-1">Winner Address</p>
+                          <p className="font-mono text-sm text-green-400 break-all">{winner.address}</p>
+                        </div>
+
+                        <div className="flex items-center justify-center gap-6 mb-4">
+                          <div className="text-center">
+                            <p className="text-xs text-gray-500 uppercase">Pool Total</p>
+                            <p className="text-lg font-bold text-gray-600">{demoPool.price}</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-xs text-green-600 uppercase">Yield Won</p>
+                            <p className="text-3xl font-black text-green-600">{winner.prize}</p>
+                          </div>
+                        </div>
+
+                        {txHash && (
+                          <div className="bg-gray-100 border border-gray-300 p-2 rounded-lg mb-4">
+                            <p className="text-xs text-gray-500 mb-1">Tx Hash {isDemoMode && "(Simulated)"}</p>
+                            <p className="font-mono text-xs text-gray-700 break-all">{txHash}</p>
+                          </div>
+                        )}
+
+                        <div className="flex gap-3 justify-center flex-wrap">
+                          <button
+                            onClick={handleReset}
+                            className="bg-[#4fe869] border-2 border-black py-2 px-4 font-bold uppercase
+                              hover:bg-[#3dd858] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all"
+                          >
+                            🔄 Pick Another
+                          </button>
+                          {txHash && !isDemoMode && (
+                            <a
+                              href={`https://explorer.aptoslabs.com/txn/${txHash}?network=testnet`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="bg-[#baff73] border-2 border-black py-2 px-4 font-bold uppercase
+                                hover:bg-[#a3e660] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all inline-block"
+                            >
+                              View on Explorer →
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Other expired pools */}
+                  {expiredPools.length > 0 && (
+                    <div className="border-t-2 border-gray-200 pt-4">
+                      <p className="text-sm font-bold text-gray-500 uppercase mb-3">Other Expired Pools</p>
+                      <div className="flex flex-col gap-3">
+                        {expiredPools.map((pool) => (
+                          <div key={pool.id} className="bg-gray-50 border border-gray-200 p-3 flex items-center gap-3">
+                            <img
+                              src={pool.image}
+                              alt={pool.name}
+                              className="w-10 h-10 border border-gray-300 object-cover"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-bold truncate">{pool.name}</h4>
+                              <p className="text-xs text-gray-500 font-mono">{pool.price}</p>
+                            </div>
+                            <button
+                              onClick={() => handlePickWinner(pool)}
+                              disabled={isPicking && pickingWinnerFor === pool.id}
+                              className="bg-[#ff7a50] border border-black py-1 px-3 text-sm font-bold uppercase
+                                hover:bg-[#ff9470] disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {isPicking && pickingWinnerFor === pool.id ? "..." : "Pick"}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* LISTINGS */}
           <div className="flex flex-col gap-8">
@@ -638,12 +675,32 @@ const Marketplace = () => {
                 <h2 className="text-2xl font-black uppercase tracking-widest">ALL LISTINGS</h2>
               </div>
 
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className="bg-[#4fe869] border-2 border-black w-fit px-8 py-2 cursor-pointer shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all"
-              >
-                <h2 className="text-2xl font-black uppercase tracking-widest">CREATE LOTTERY</h2>
-              </button>
+              <div className="flex items-center gap-3">
+                {/* Pick Winner Button - Minimalist style */}
+                <button
+                  onClick={() => setIsPickWinnerModalOpen(true)}
+                  className="bg-[#ff7a50] border-2 border-black w-fit px-6 py-2 cursor-pointer shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all flex items-center gap-2"
+                >
+                  <span className="text-lg">🎰</span>
+                  <h2 className="text-xl font-black uppercase tracking-wide">PICK WINNER</h2>
+                  {(demoPool && pickingPhase !== "done" ? 1 : 0) +
+                    expiredPools.filter((p) => p.id !== demoPool?.id).length >
+                    0 && (
+                    <span className="bg-red-600 text-white text-xs px-1.5 py-0.5 rounded-full font-bold">
+                      {(demoPool && pickingPhase !== "done" ? 1 : 0) +
+                        expiredPools.filter((p) => p.id !== demoPool?.id).length}
+                    </span>
+                  )}
+                </button>
+
+                {/* Create Lottery Button */}
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className="bg-[#4fe869] border-2 border-black w-fit px-6 py-2 cursor-pointer shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
+                >
+                  <h2 className="text-xl font-black uppercase tracking-wide">CREATE LOTTERY</h2>
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-12">

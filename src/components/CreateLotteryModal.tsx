@@ -23,6 +23,7 @@ const CreateLotteryModal: React.FC<CreateLotteryModalProps> = ({ isOpen, onClose
     max: "",
     poolToken: "",
     poolAmount: "",
+    imageUrl: "",
   });
 
   const handleInputChange = (field: string, value: string) => {
@@ -116,6 +117,7 @@ const CreateLotteryModal: React.FC<CreateLotteryModalProps> = ({ isOpen, onClose
         pool: poolAmount,
         total: 0, // Initial total is 0
         pool_address: onChainResult.poolAddress || null, // Save the on-chain pool address
+        image_url: formData.imageUrl.trim() || null, // Save the image URL
       });
 
       if (pool) {
@@ -131,6 +133,7 @@ const CreateLotteryModal: React.FC<CreateLotteryModalProps> = ({ isOpen, onClose
           max: "",
           poolToken: "",
           poolAmount: "",
+          imageUrl: "",
         });
 
         // Callback for parent component
@@ -186,6 +189,19 @@ const CreateLotteryModal: React.FC<CreateLotteryModalProps> = ({ isOpen, onClose
               placeholder="Enter Lottery name"
               value={formData.name}
               onChange={(e) => handleInputChange("name", e.target.value)}
+              className="flex-1 bg-white border-2 border-black p-3 font-mono text-gray-700 focus:outline-none focus:ring-2 focus:ring-black/20"
+              disabled={isLoading}
+            />
+          </div>
+
+          {/* Image URL */}
+          <div className="flex flex-col md:flex-row md:items-center gap-4">
+            <label className="text-xl font-bold font-mono min-w-[200px] text-black">Image URL</label>
+            <input
+              type="url"
+              placeholder="https://example.com/image.png"
+              value={formData.imageUrl}
+              onChange={(e) => handleInputChange("imageUrl", e.target.value)}
               className="flex-1 bg-white border-2 border-black p-3 font-mono text-gray-700 focus:outline-none focus:ring-2 focus:ring-black/20"
               disabled={isLoading}
             />

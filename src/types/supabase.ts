@@ -70,6 +70,7 @@ export type Database = {
           total: number;
           created_at: string | null;
           pool_address: string | null;
+          image_url: string | null;
         };
         Insert: {
           id?: string;
@@ -80,6 +81,7 @@ export type Database = {
           total?: number;
           created_at?: string | null;
           pool_address?: string | null;
+          image_url?: string | null;
         };
         Update: {
           id?: string;
@@ -90,6 +92,7 @@ export type Database = {
           total?: number;
           created_at?: string | null;
           pool_address?: string | null;
+          image_url?: string | null;
         };
         Relationships: [];
       };
